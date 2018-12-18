@@ -11,7 +11,10 @@
 #include <netdb.h>
 #include <ctype.h>
 #include <iostream>
+
 using namespace std;
+
+#define GENERAL_VERSION 1
 
 #define ANNOUNCE_RESPONSE 1
 #define HANDOVER_REQUEST 2
@@ -41,22 +44,22 @@ struct tag_len_val
 								not equal zero	*/
 }__attribute__((packed));
 
-//struct protocol_data
-//{
-//	char *Network_Name;
-//	char *BSSID;
-//	char *Capabilities;
-//	char *Announce_Interval;
-//	char *Handover_Timeout;
-//	char *PHY_Type;
-//	char *Regulatory_Domain;
-//	char *Radio_Channel;
-//	char *Beacon_Interval;
-//	char *OUI_Identifier;
-//
-//	struct tag_len_val tlv;
-//	
-//}__attribute__((packed));
+struct protocol_data
+{
+	char *Network_Name;
+	char *BSSID;
+	char *Capabilities;
+	char *Announce_Interval;
+	char *Handover_Timeout;
+	char *PHY_Type;
+	char *Regulatory_Domain;
+	char *Radio_Channel;
+	char *Beacon_Interval;
+	char *OUI_Identifier;
+
+	struct tag_len_val tlv;
+	
+}__attribute__((packed));
 
 struct iapp
 {
@@ -64,79 +67,10 @@ struct iapp
 	uint8_t general_type;
 	
 	struct tag_len_val tlv;
-//	struct protocol_data prodata;
+//	struct protocol_data dataframe;
 	
 }__attribute__((packed));
-// Function to convert hexadecimal to decimal 
-int hexadecimalToDecimal(void* hexval) 
-{   const char *hexVal = (const char*)hexval;
-    int len = strlen(hexVal); 
-      
-    // Initializing base value to 1, i.e 16^0 
-    int base = 1; 
-      
-    int dec_val = 0; 
-      
-    // Extracting characters as digits from last character 
-    for (int i=len-1; i>=0; i--) 
-    {    
-        // if character lies in '0'-'9', converting  
-        // it to integral 0-9 by subtracting 48 from 
-        // ASCII value. 
-        if (hexVal[i]>='0' && hexVal[i]<='9') 
-        { 
-            dec_val += (hexVal[i] - 48)*base; 
-                  
-            // incrementing base by power 
-            base = base * 16; 
-        } 
-  
-        // if character lies in 'A'-'F' , converting  
-        // it to integral 10 - 15 by subtracting 55  
-        // from ASCII value 
-        else if (hexVal[i]>='A' && hexVal[i]<='F') 
-        { 
-            dec_val += (hexVal[i] - 55)*base; 
-          
-            // incrementing base by power 
-            base = base*16; 
-        } 
-    } 
-      
-    return dec_val; 
-}
 
-/*	Stringbuffer(p->value) to  Decimal 	*/
-int power(int base, int exp)
-{
-	int ret=1;
-	int i;
-	for(i=0;i<exp;i++){
-    		ret*=base;
-	}
-	return ret;
-}
-int stringToInt(unsigned char* nrStr)
-{
-	int nrChars=0;
-	while(nrStr[nrChars]!='\0'){
-    		nrChars++;
-	}
-
-
-	int result=0;
-	int i=0;
-	while(nrStr[i]!='\0')
-	{
-	    	//while you dont get to the end of the string
-	        int digit=nrStr[i]-48;//48 is zero ascii code
-	        int exp=nrChars-i-1;
-	        int add=digit*power(10,exp);
-	        result+=add;
-		i++;
-	}
-	return result;
-}
 void printhexvalue(void *ptr, int buflen)
 {
 	unsigned char *buf = (unsigned char*)ptr;
@@ -198,20 +132,39 @@ void hexdump(void *ptr, int buflen)
 }
 
 struct sockaddr_in localSock;
-
+struct sockaddr_in dest_addr;
 struct ip_mreq group;
 int sd;
 int datalen;
 unsigned char databuf[128];
 
-struct tag_len_val tlv;
-//struct tag_len_val *p = (tag_len_val*)malloc(10*sizeof(struct tag_len_val));
-
-//struct iapp info;
-//struct iapp *infoPtr;
-//infoPtr = &info; /*so to access the sructures' levels: */
-			/*infoPtr->version & infoPtr->general_type*/
-			/*infoPtr->proto->Network_Name*/
+//int getVersion((struct tag_len_val*)p, databuf, datalen)
+//{
+//	
+//}
+//int getType((struct tag_len_val*)p, databuf, datalen)
+//{
+//	
+//}
+//int getSSID((struct tag_len_val*)p, databuf, datalen)
+//{
+//	
+//}
+//int getBSSID((struct tag_len_val*)p, databuf, datalen)
+//{
+//	
+//}
+//int getANNOUNCE_INTERVAL((struct tag_len_val*)p, databuf, datalen)
+//{
+//	
+//}
+//
+///* Function to Send ( Version & Type & SSID & BSSID & ANNOUNCE_INTERVAL ) */
+//int sendDATA_FRAMES((struct tag_len_val*)p , databuf, datalen)
+//{
+//	
+//}
+//
 
 int main(int argc, char *argv[]){
 
@@ -262,7 +215,13 @@ int main(int argc, char *argv[]){
 	   called for each local interface over which the multicast
 	   datagrams are to be received.*/
 	group.imr_multiaddr.s_addr = inet_addr("224.0.1.76");
-	group.imr_interface.s_addr = inet_addr("10.93.0.64");
+	group.imr_interface.s_addr = htonl(INADDR_ANY);
+	if(group.imr_multiaddr.s_addr < 0)
+	{
+		perror("224.0.1.76 is not a valid Multicast-Address\n");
+		close(sd);
+		exit(1);
+	}
 	if(setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&group, sizeof(group)) < 0)
 	{
 		perror("Adding multicast group error");
@@ -283,70 +242,102 @@ int main(int argc, char *argv[]){
 		exit(1);
 	}
 	else
-	{ 
+	{
+	       /**********************************************/	
 		/* HERE BEGINS THE MANIPULATING OF DATA... */
 		
+		/* Send to the proper port number with the IP address
+		specified as Multicast IP Address to THIS -->> 224.0.1.76 */
+		memset((char *) &dest_addr, 0, sizeof(dest_addr));
+		dest_addr.sin_family = AF_INET;
+		dest_addr.sin_port = htons(2313);
+		dest_addr.sin_addr.s_addr= inet_addr("224.0.1.76");
+		
 		printf("Reading datagram message...OK.\n");
+		//printf("Got Data Packet from %s\n", inet_ntoa(dest_addr));
 		printf("\nThe message from multicast server is: \n");
-		hexdump(databuf, 128); // This is to print out the Data Package
-		printf("\n");
-		printf("\n");
+		hexdump(databuf, datalen); // This is to print out the Data Package
+		printf("\n\n");
 
-		// Declare and Initialize the iapp Pointer to the 'original Buffer'
+		
+		// 1. Define and Initialize the iapp Pointer to the 'original Buffer'
 		struct iapp *iappPtr = (struct iapp*)databuf;
+		
+		// 2.(a) Define another databuffer (*bytep) shifted by two
+		unsigned char *bytep = databuf+2; /* skip version + type field sven */
+		// 2.(b) Define and Initialize the tlv Pointer to the 'modified Buffer'
+		struct tag_len_val *p =(struct tag_len_val *)bytep;	
+		
+	//	// 3. Define a third buffer for the Transmitted Data
+	//	unsigned char *databuffer_sent = databuf;
+	//	int sent_length = sizeof(databuf);
+
 
 		/*     	Check for General Version and Type of Packet	*/
 		printf("General Version: (%u)\n", iappPtr->general_version);
+	//	sendto(sd, iappPtr, sizeof(iappPtr->general_version), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+
 		switch(iappPtr->general_type)
 		{
 			case ANNOUNCE_RESPONSE:
 	                printf("General Type: Announce Request (%u)\n", iappPtr->general_type);
+	//		sendto(sd, iappPtr, sizeof(iappPtr->general_type), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+
 			break;
 			case HANDOVER_REQUEST:
 			printf("General Type: Handover Response  (%u)\n", iappPtr->general_type);
+	//		sendto(sd, iappPtr, sizeof(iappPtr->general_type), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+
 			break;
 			default:
 			printf("Unknown Data Packet!\n");
 
 		}
 		printf("\n");
-		/*	IDEA	*/
-		/*	remove the first two bytes from the databuf and assign it to a new variable,
-		 *	then use the new variable to be pointed at.	*/
+			/*	IDEA	*/
+			/*	remove the first two bytes from the databuf and assign it to a new variable,
+			 *	then use the new variable to be pointed at.	*/
 
-//		char databuf_modified[128];
-//		memcpy(databuf_modified, databuf+2, datalen-2);
-		
-//		struct tag_len_val *p = (struct tag_len_val*)databuf_modified;
 		
 		/*	   Let's See the databuf_modified  	*/
 		printf("Protocol Data Units: \n");
 		printf("\n");	
+		
 		/*Loop through the buffer -beginning from the third Index of buffer-*/
-		//int varlen;
-		unsigned char *bytep = databuf+2; /* skip version + type field sven */
-		hexdump(bytep, 128);
-		printf("\n");
-		struct tag_len_val *p =(struct tag_len_val *)bytep;
+		//unsigned char *bytep = databuf+2; /* skip version + type field sven |MOVED UP| */ 
+		//hexdump(bytep, datalen);
+		//printf("\n");
+
+//		struct tag_len_val *p =(struct tag_len_val *)bytep;	
+//		unsigned char *databuffer_sent = databuf;
+//		int sent_length = sizeof(databuf);
+		//hexdump(databuffer_sent, sent_length);
+	
+	//	/* Loop for the Required Frames&Send the required Data Frames |just send ALL DATA FRAMES|*/
+	//	for(int i=0; i<10;i++)
+	//	{
+	//		
+	//	}
+	//	sendto(sd, databuffer_sent, sent_length/2, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+		uint8_t dataframeslength=0;
+		uint8_t no_of_elements = 0;
+
 		for(int i=0; (i< datalen) && (p->length != 0) ;)
 		{
 			p = (struct tag_len_val *)bytep; /* sven */
 			bytep += 3 + p->length;
 
-			/*	Modify the new Buffer	*/
-			//memcpy(databuf_modified, databuf+2+i, datalen-2-i);
-        	        //struct tag_len_val *p = (struct tag_len_val*)databuf_modified;
-
 			/*	Print the Members of struct	*/
 			/*	1.Check for every standard Type 
-			 *	2.Print its name	*/
+			 *	2.Print its name	
+			 *	3.Send the specified data frame */
 			
 			switch(p->type)
 			{
 				case TYPE_NETWORK_NAME:
 				if(p->length == 0)
 				{
-				printf("the Rest is unknown\n");
+				printf("-- End of Data Packet --\n");
 				break;
 				}
 				printf("- Network Name : (%u) \n", p->type);
@@ -354,6 +345,9 @@ int main(int argc, char *argv[]){
 				printf("- Value : %s - ", p->value);
 				printhexvalue(p->value, p->length);
 				printf("\n");
+				dataframeslength += p->length;
+				no_of_elements +=3;
+		//		sendto(sd, p->value, p->length, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
 					break;
 
 				case TYPE_BSSID:
@@ -362,6 +356,9 @@ int main(int argc, char *argv[]){
 				printf("- Value : ");
 				printhexvalue(p->value, p->length);
 				printf("\n");
+				dataframeslength += p->length;
+				no_of_elements +=3;
+		//		sendto(sd, p->value, p->length, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
 					break;
 
 				case TYPE_OLD_BSSID:
@@ -370,6 +367,8 @@ int main(int argc, char *argv[]){
 				printf("- Value : ");
 				printhexvalue(p->value, p->length);
 				printf("\n");
+				dataframeslength += p->length;
+				no_of_elements +=3;
 					break;
 
 				case TYPE_MOBILE_STATION_ADDRESS:
@@ -378,6 +377,8 @@ int main(int argc, char *argv[]){
 				printf("- Value : ");
 				printhexvalue(p->value, p->length);
 				printf("\n");
+				dataframeslength += p->length;
+				no_of_elements +=3;
 					break;
 				
 				case TYPE_MESSAGE_ID:
@@ -386,6 +387,8 @@ int main(int argc, char *argv[]){
 				printf("- Value : ");
 				printhexvalue(p->value, p->length);
 				printf("\n");
+				dataframeslength += p->length;
+				no_of_elements +=3;
 					break;
 			
 				case TYPE_CAPABILITIES:
@@ -394,6 +397,8 @@ int main(int argc, char *argv[]){
 				printf("- Value : ");
 				printhexvalue(p->value, p->length);
 				printf("\n");
+				dataframeslength += p->length;
+				no_of_elements +=3;
                                         break;
 
                                 case TYPE_ANNOUNCE_INTERVAL:
@@ -402,6 +407,9 @@ int main(int argc, char *argv[]){
 				printf("- Value : (%u) seconds - ", ntohs(*(uint16_t *)(p->value)));
 				printhexvalue(p->value, p->length);
 				printf("\n");
+				dataframeslength += p->length;
+				no_of_elements +=3;
+				//sendto(sd, p->value, p->length, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
 				        break;
 
                                 case TYPE_HANDOVER_TIMEOUT:
@@ -410,6 +418,8 @@ int main(int argc, char *argv[]){
 				printf("- Value : (%u) Kus - ", ntohs(*(uint16_t *)(p->value)));
 				printhexvalue(p->value, p->length);
 				printf("\n");
+				dataframeslength += p->length;
+				no_of_elements +=3;
                                         break;
 
 				
@@ -419,6 +429,8 @@ int main(int argc, char *argv[]){
 				printf("- Value : ");
 				printhexvalue(p->value, p->length);
 				printf("\n");
+				dataframeslength += p->length;
+				no_of_elements +=3;
 					break;
 
 				case TYPE_REGULATORY_DOMAIN:
@@ -427,6 +439,8 @@ int main(int argc, char *argv[]){
 				printf("- Value : ");
 				printhexvalue(p->value, p->length);
 				printf("\n");
+				dataframeslength += p->length;
+				no_of_elements +=3;
 					break;
 
 				case TYPE_RADIO_CHANNEL:
@@ -435,6 +449,8 @@ int main(int argc, char *argv[]){
 				printf("- Value : ");
 				printhexvalue(p->value, p->length);
 				printf("\n");
+				dataframeslength += p->length;
+				no_of_elements +=3;
 					break;
 
 				case TYPE_BEACON_INTERVAL:
@@ -443,6 +459,8 @@ int main(int argc, char *argv[]){
 				printf("- Value : (%u) Kus - ", ntohs(*(uint16_t *)(p->value)));
 				printhexvalue(p->value, p->length);
 				printf("\n");
+				dataframeslength += p->length;
+				no_of_elements +=3;
 					break;
 
 				case TYPE_OUI_IDENTIFIER:
@@ -451,9 +469,13 @@ int main(int argc, char *argv[]){
 				printf("- Value : ");
 				printhexvalue(p->value, p->length);
 				printf("\n");
+				dataframeslength += p->length;
+				no_of_elements +=3;
 					break;
 				default:
 					printf("Unknown PDU Type : (%u)\n", p->type);
+					dataframeslength += p->length;
+					no_of_elements +=3;
 
 			}
 				/*	Shifting the address for i	*/
@@ -463,7 +485,32 @@ int main(int argc, char *argv[]){
 
 				/*	Shifting the address for p	*/
 		}
-	
+			
+		
+		/* Manipulate the databuffer to get it sending exactly what you want */
+		//now i have the total length of values [in bytes], but how many [bytes are in the whole Packet]
+		
+		// so now -> [packetlength] = dataframeslength + no_of_elements + 2 // for version&type
+		uint8_t packetlength = dataframeslength + no_of_elements +2;
+		//unsigned char databuffer_sent[packetlength] ;
+		//memcpy(databuffer_sent, databuf, packetlength);
+		/*	Send whole data buffer to the Server (Source 'AP') with MULTICAST IP 224.0.1.76  */
+		if(sendto(sd, databuf, packetlength, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr))< 0)
+
+		{
+		perror("Sending Error");
+		close(sd);
+		exit(1);
+		}
+		else
+		{
+		printf("The Transmitted Data is: \n");
+		hexdump(databuf, packetlength);	
+		printf("\n");
+		/* send  */
+		}
 	}
+
+
 	return 0;
 }
