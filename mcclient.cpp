@@ -33,6 +33,8 @@ using namespace std;
 #define TYPE_BEACON_INTERVAL 19
 #define TYPE_OUI_IDENTIFIER 128 
 
+#define BUFFER_SIZE 256
+
 struct tag_len_val
 {
 	uint8_t type;
@@ -46,7 +48,7 @@ struct tag_len_val
 
 struct protocol_data
 {
-	char *Network_Name;
+	char *SSID;
 	char *BSSID;
 	char *Capabilities;
 	char *Announce_Interval;
@@ -57,7 +59,7 @@ struct protocol_data
 	char *Beacon_Interval;
 	char *OUI_Identifier;
 
-	struct tag_len_val tlv;
+	struct tag_len_val *tlv;
 	
 }__attribute__((packed));
 
@@ -66,10 +68,107 @@ struct iapp
 	uint8_t general_version;
 	uint8_t general_type;
 	
-	struct tag_len_val tlv;
-//	struct protocol_data dataframe;
+//	char *SSID;
+//	char *BSSID;
+//	char *Capabilities;
+//	char *Announce_Interval;
+//	char *Handover_Timeout;
+//	char *PHY_Type;
+//	char *Regulatory_Domain;
+//	char *Radio_Channel;
+//	char *Beacon_Interval;
+//	char *OUI_Identifier;
+	
+	struct tag_len_val *tlv;
+	struct protocol_data *dataframe;
 	
 }__attribute__((packed));
+
+/* another way to -fill the buffer- to send it
+	p = alloc_iapp_msg();
+	add_iapp_network_name(p, "ssid");
+	add_iapp_radio_channel(p, 6);
+*/
+// malloc a buffer (using calloc for arrays)
+unsigned char* alloc_iapp_msg(unsigned char *buffer, uint8_t bufferlen)
+{
+	buffer = (unsigned char*)calloc(bufferlen, sizeof(unsigned char));
+	return buffer;
+}
+void add_iapp_ver_type(struct iapp* iappPtr, unsigned char* sent_buffer)
+{
+	if(iappPtr->general_version == GENERAL_VERSION)
+		sent_buffer[0] = iappPtr->general_version;
+	if(iappPtr->general_type == ANNOUNCE_RESPONSE)
+                sent_buffer[1] = iappPtr->general_type;
+	if(iappPtr->general_type == HANDOVER_REQUEST)
+		sent_buffer[1] = iappPtr->general_type;
+}
+void* add_iapp_SSID(struct protocol_data* dataframe, struct tag_len_val* tlvPtr, unsigned char* sent_buffer)
+{
+	if(tlvPtr->type == TYPE_NETWORK_NAME)
+	{
+
+	/* assign the tlv pointer to the members of iapp structure*/
+	dataframe->SSID[0] = tlvPtr->type;
+	dataframe->SSID[1] = tlvPtr->type_option;
+	dataframe->SSID[2] = tlvPtr->length;
+	unsigned char* destPtr= (unsigned char*) memcpy((unsigned char*)dataframe->SSID[3], (const unsigned char*)tlvPtr->value, tlvPtr->length);
+	
+	int dataframelen = tlvPtr->length + 3;
+
+		for(int i=0; i<dataframelen; i++)
+		{
+			sent_buffer[i] = dataframe->SSID[i];
+		}
+	destPtr++;
+	sent_buffer = destPtr;
+	return sent_buffer;
+	}else
+	{return NULL;}
+
+}
+void* add_iapp_BSSID(struct protocol_data* dataframe, struct tag_len_val* tlvPtr, unsigned char* sent_buffer)
+{
+	if(tlvPtr->type == TYPE_BSSID)
+        {
+        /* assign the tlv pointer to the members of iapp structure*/
+
+        dataframe->BSSID[0] = tlvPtr->type;
+        dataframe->BSSID[1] = tlvPtr->type_option;
+        dataframe->BSSID[2] = tlvPtr->length;
+        memcpy((void*)dataframe->BSSID[3], tlvPtr->value, tlvPtr->length);
+	
+        int dataframelen = tlvPtr->length + 3;
+
+	        for(int i=0; i<dataframelen; i++)
+        	{
+                	sent_buffer[i] = dataframe->BSSID[i];
+	        }
+	return sent_buffer;
+        }else
+	{return NULL;}
+}
+void* add_iapp_Capabilities(struct protocol_data* dataframe, struct tag_len_val* tlvPtr, unsigned char* sent_buffer)
+{
+        if(tlvPtr->type == TYPE_CAPABILITIES)
+        {
+        /* assign the tlv pointer to the members of iapp structure*/
+
+        dataframe->Capabilities[0] = tlvPtr->type;
+        dataframe->Capabilities[1] = tlvPtr->type_option;
+        dataframe->Capabilities[2] = tlvPtr->length;
+        memcpy((void*)dataframe->Capabilities[3], tlvPtr->value, tlvPtr->length);
+        int dataframelen = tlvPtr->length + 3;
+
+        	for(int i=0; i<dataframelen; i++)
+        	{
+                	sent_buffer[i] = dataframe->Capabilities[i];
+	        }
+	return sent_buffer;
+        }else
+	{return NULL;}
+}
 
 void printhexvalue(void *ptr, int buflen)
 {
@@ -136,35 +235,7 @@ struct sockaddr_in dest_addr;
 struct ip_mreq group;
 int sd;
 int datalen;
-unsigned char databuf[128];
-
-//int getVersion((struct tag_len_val*)p, databuf, datalen)
-//{
-//	
-//}
-//int getType((struct tag_len_val*)p, databuf, datalen)
-//{
-//	
-//}
-//int getSSID((struct tag_len_val*)p, databuf, datalen)
-//{
-//	
-//}
-//int getBSSID((struct tag_len_val*)p, databuf, datalen)
-//{
-//	
-//}
-//int getANNOUNCE_INTERVAL((struct tag_len_val*)p, databuf, datalen)
-//{
-//	
-//}
-//
-///* Function to Send ( Version & Type & SSID & BSSID & ANNOUNCE_INTERVAL ) */
-//int sendDATA_FRAMES((struct tag_len_val*)p , databuf, datalen)
-//{
-//	
-//}
-//
+unsigned char databuf[BUFFER_SIZE];
 
 int main(int argc, char *argv[]){
 
@@ -210,9 +281,9 @@ int main(int argc, char *argv[]){
 		printf("Binding datagram socket...OK. \n");
 	}
 	
-	/* Join the multicast group 224.0.1.76 on the local 10.93.0.64 
-	   interface. Note that this IP_ADD_MEMBERSHIP option must be 
-	   called for each local interface over which the multicast
+	/* Join the multicast group 224.0.1.76 on the local 10.93.0.64
+	 * or INADDR_ANY interface. Note that this IP_ADD_MEMBERSHIP option
+	 * must be called for each local interface over which the multicast
 	   datagrams are to be received.*/
 	group.imr_multiaddr.s_addr = inet_addr("224.0.1.76");
 	group.imr_interface.s_addr = htonl(INADDR_ANY);
@@ -234,8 +305,10 @@ int main(int argc, char *argv[]){
 	
 	/* Read from the socket */
 	datalen = sizeof(databuf);
-	int readOut = read(sd, databuf, datalen);
-	if(readOut < 0)
+	//datalen = sizeof(databuf); // with normal unsigned char buffer of 128 bytes
+	int readoutlen = read(sd, databuf, datalen);
+	printf("-- Message Length : %d\n", readoutlen);
+	if(readoutlen < 0)
 	{
 		perror("Reading datagram message error");
 		close(sd);
@@ -256,7 +329,7 @@ int main(int argc, char *argv[]){
 		printf("Reading datagram message...OK.\n");
 		//printf("Got Data Packet from %s\n", inet_ntoa(dest_addr));
 		printf("\nThe message from multicast server is: \n");
-		hexdump(databuf, datalen); // This is to print out the Data Package
+		hexdump(databuf, readoutlen); // This is to print out the Data Package
 		printf("\n\n");
 
 		
@@ -268,25 +341,19 @@ int main(int argc, char *argv[]){
 		// 2.(b) Define and Initialize the tlv Pointer to the 'modified Buffer'
 		struct tag_len_val *p =(struct tag_len_val *)bytep;	
 		
-	//	// 3. Define a third buffer for the Transmitted Data
-	//	unsigned char *databuffer_sent = databuf;
-	//	int sent_length = sizeof(databuf);
 
 
 		/*     	Check for General Version and Type of Packet	*/
 		printf("General Version: (%u)\n", iappPtr->general_version);
-	//	sendto(sd, iappPtr, sizeof(iappPtr->general_version), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
 
 		switch(iappPtr->general_type)
 		{
 			case ANNOUNCE_RESPONSE:
 	                printf("General Type: Announce Request (%u)\n", iappPtr->general_type);
-	//		sendto(sd, iappPtr, sizeof(iappPtr->general_type), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
 
 			break;
 			case HANDOVER_REQUEST:
 			printf("General Type: Handover Response  (%u)\n", iappPtr->general_type);
-	//		sendto(sd, iappPtr, sizeof(iappPtr->general_type), 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
 
 			break;
 			default:
@@ -295,8 +362,7 @@ int main(int argc, char *argv[]){
 		}
 		printf("\n");
 			/*	IDEA	*/
-			/*	remove the first two bytes from the databuf and assign it to a new variable,
-			 *	then use the new variable to be pointed at.	*/
+			/*	skip the first two bytes from the databuf   */
 
 		
 		/*	   Let's See the databuf_modified  	*/
@@ -308,23 +374,15 @@ int main(int argc, char *argv[]){
 		//hexdump(bytep, datalen);
 		//printf("\n");
 
-//		struct tag_len_val *p =(struct tag_len_val *)bytep;	
-//		unsigned char *databuffer_sent = databuf;
-//		int sent_length = sizeof(databuf);
-		//hexdump(databuffer_sent, sent_length);
-	
-	//	/* Loop for the Required Frames&Send the required Data Frames |just send ALL DATA FRAMES|*/
-	//	for(int i=0; i<10;i++)
-	//	{
-	//		
-	//	}
-	//	sendto(sd, databuffer_sent, sent_length/2, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+		//alloc_iapp_msg();
+
 		uint8_t dataframeslength=0;
 		uint8_t no_of_elements = 0;
 
 		for(int i=0; (i< datalen) && (p->length != 0) ;)
 		{
 			p = (struct tag_len_val *)bytep; /* sven */
+			/*	Shifting the address for p to next PD Member	*/
 			bytep += 3 + p->length;
 
 			/*	Print the Members of struct	*/
@@ -347,7 +405,6 @@ int main(int argc, char *argv[]){
 				printf("\n");
 				dataframeslength += p->length;
 				no_of_elements +=3;
-		//		sendto(sd, p->value, p->length, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
 					break;
 
 				case TYPE_BSSID:
@@ -358,7 +415,6 @@ int main(int argc, char *argv[]){
 				printf("\n");
 				dataframeslength += p->length;
 				no_of_elements +=3;
-		//		sendto(sd, p->value, p->length, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
 					break;
 
 				case TYPE_OLD_BSSID:
@@ -409,7 +465,6 @@ int main(int argc, char *argv[]){
 				printf("\n");
 				dataframeslength += p->length;
 				no_of_elements +=3;
-				//sendto(sd, p->value, p->length, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
 				        break;
 
                                 case TYPE_HANDOVER_TIMEOUT:
@@ -483,19 +538,24 @@ int main(int argc, char *argv[]){
 							
 				printf("\n");
 
-				/*	Shifting the address for p	*/
 		}
-			
 		
 		/* Manipulate the databuffer to get it sending exactly what you want */
-		//now i have the total length of values [in bytes], but how many [bytes are in the whole Packet]
+		/* Now I have the total length of values [in bytes],
+		/  but how many [bytes are in the whole Packet]*/
 		
-		// so now -> [packetlength] = dataframeslength + no_of_elements + 2 // for version&type
-		uint8_t packetlength = dataframeslength + no_of_elements +2;
-		//unsigned char databuffer_sent[packetlength] ;
-		//memcpy(databuffer_sent, databuf, packetlength);
-		/*	Send whole data buffer to the Server (Source 'AP') with MULTICAST IP 224.0.1.76  */
-		if(sendto(sd, databuf, packetlength, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr))< 0)
+	//	uint8_t packetlength = dataframeslength + no_of_elements +2;
+		
+		/* allocate buffer->add bytes in buffer->
+		 * remember the buffer name?->got the new buffer length?->
+		 * ---pass it to sendto()--- */
+
+		//p = alloc_iapp_msg();
+	        //add_iapp_network_name(p, "Test1");
+        	//add_iapp_radio_channel(p, 6);
+	
+		/*  Send whole data buffer to the Server (Source 'AP') with MULTICAST IP 224.0.1.76  */
+		if(sendto(sd, databuf, readoutlen, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr))< 0)
 
 		{
 		perror("Sending Error");
@@ -505,12 +565,9 @@ int main(int argc, char *argv[]){
 		else
 		{
 		printf("The Transmitted Data is: \n");
-		hexdump(databuf, packetlength);	
+		hexdump(databuf, readoutlen);	
 		printf("\n");
-		/* send  */
 		}
 	}
-
-
 	return 0;
 }
