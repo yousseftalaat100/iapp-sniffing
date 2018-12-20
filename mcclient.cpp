@@ -78,7 +78,7 @@ struct iapp
 //	char *Radio_Channel;
 //	char *Beacon_Interval;
 //	char *OUI_Identifier;
-	
+	// Think about ..malloc(..struct tag_len_val)	
 	struct tag_len_val *tlv;
 	struct protocol_data *dataframe;
 	
