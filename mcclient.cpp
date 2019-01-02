@@ -83,7 +83,7 @@ struct IAPP
    */
 // malloc a buffer (using calloc for arrays)
 
-unsigned char* alloc_IAPP_msg(uint8_t nmemb, uint8_t size)
+unsigned char* alloc_IAPP_msg(int nmemb, uint8_t size)
 {
     return (unsigned char*)calloc(nmemb, size);
 }
@@ -99,6 +99,21 @@ unsigned char* add_IAPP_ver_type(struct IAPP* IAPPPtr, unsigned char* sent_buffe
 
     return sent_buffer;
 }
+
+unsigned char* add_IAPP_Version(unsigned char* p, const char* val)
+{
+    unsigned char *nextPtr = p;
+    nextPtr = (unsigned char*)memcpy(p, val, 1);
+    return nextPtr+1;
+}
+
+unsigned char* add_IAPP_Type(unsigned char* p, const char* val)
+{
+    unsigned char *nextPtr = p;
+    nextPtr = (unsigned char*)memcpy(p, val, 1);
+    return nextPtr+1;
+}
+
 unsigned char* add_IAPP_SSID(unsigned char* p, const char* val)
 {
     p[0] = TYPE_NETWORK_NAME;
@@ -113,55 +128,28 @@ unsigned char* add_IAPP_SSID(unsigned char* p, const char* val)
     }
     p[2] = length;
     p+=3;
-    unsigned char *nextPtr = p;
-    nextPtr = (unsigned char*)memcpy(p, val, length);
-    return nextPtr+length;
+    return (unsigned char*)memcpy(p, val, length) + length;
 
 }
+
 unsigned char* add_IAPP_BSSID(unsigned char* p, const char* val)
 {
     p[0] = TYPE_BSSID;
     p[1] = 0;
-    uint8_t length=0;
-    for(unsigned i=0; i<6;i++){
-        if(val[0]==0x00 && val[1]!=0x00){
-            i++;
-            length++;
-            if(val[i]!=0x00){
-                length++;
-            }else{
-                break;
-            }
-        }
-    }
+    uint8_t length=6;
     p[2] = length;
     p+=3;
-    unsigned char *nextPtr = p;
-    nextPtr = (unsigned char*)memcpy(p, val, length);
-    return nextPtr+length;
+    return (unsigned char*)memcpy(p, val, length) + length;
 }
 
 unsigned char* add_IAPP_Old_BSSID(unsigned char* p, const char* val)
 {
     p[0] = TYPE_OLD_BSSID;
     p[1] = 0;
-    uint8_t length=0;
-    for(unsigned i=0; i<6;i++){
-        if(val[0]==0x00 && val[1]!=0x00){
-            i++;
-            length++;
-            if(val[i]!=0x00){
-                length++;
-            }else{
-                break;
-            }
-        }
-    }
+    uint8_t length=6;
     p[2] = length;
     p+=3;
-    unsigned char *nextPtr = p;
-    nextPtr = (unsigned char*)memcpy(p, val, length);
-    return nextPtr+length;
+    return (unsigned char*)memcpy(p, val, length) + length;
 }
 
 unsigned char* add_IAPP_Mobile_Station_Address(unsigned char* p, const char* val)
@@ -169,7 +157,7 @@ unsigned char* add_IAPP_Mobile_Station_Address(unsigned char* p, const char* val
     p[0] = TYPE_MOBILE_STATION_ADDRESS;
     p[1] = 0; // Type Option
     uint8_t length = 0;
-    for(unsigned i=0; i<32; i++){
+    for(unsigned i=0; i<6; i++){
         if(val[i]!='\0'){
             length++;
         } else {
@@ -178,9 +166,7 @@ unsigned char* add_IAPP_Mobile_Station_Address(unsigned char* p, const char* val
     }
     p[2] = length;
     p+=3;
-    unsigned char *nextPtr = p;
-    nextPtr = (unsigned char*)memcpy(p, val, length);
-    return nextPtr+length;
+    return (unsigned char*)memcpy(p, val, length) + length;
 }
 
 unsigned char* add_IAPP_Capabilities(unsigned char* p, const char* val)
@@ -197,47 +183,35 @@ unsigned char* add_IAPP_Capabilities(unsigned char* p, const char* val)
     }
     p[2] = length;
     p+=3;
-    unsigned char *nextPtr = p;
-    nextPtr = (unsigned char*)memcpy(p, val, length);
-    return nextPtr+length;
+    return (unsigned char*)memcpy(p, val, length) + length;
 }
 
 unsigned char* add_IAPP_Announce_Interval(unsigned char* p, const char* val)
 {
     p[0] = TYPE_ANNOUNCE_INTERVAL;
-    p[1] = 0; // Type Option
-    uint8_t length = 0;
-    for(unsigned i=0; i<32; i++){
+    p[1] = 0;
+    uint8_t length=0;
+    for(unsigned i=0; i<32;i++){
         if(val[i]!='\0'){
             length++;
         } else {
             break;
         }
+
     }
     p[2] = length;
     p+=3;
-    unsigned char *nextPtr = p;
-    nextPtr = (unsigned char*)memcpy(p, val, length);
-    return nextPtr+length;
+    return (unsigned char*)memcpy(p, val, length) + length;
 }
 
 unsigned char* add_IAPP_Handover_Timeout(unsigned char* p, const char* val)
 {
     p[0] = TYPE_HANDOVER_TIMEOUT;
     p[1] = 0; // Type Option
-    uint8_t length = 0;
-    for(unsigned i=0; i<32; i++){
-        if(val[i]!='\0'){
-            length++;
-        } else {
-            break;
-        }
-    }
+    uint8_t length = 2;
     p[2] = length;
     p+=3;
-    unsigned char *nextPtr = p;
-    nextPtr = (unsigned char*)memcpy(p, val, length);
-    return nextPtr+length;
+    return (unsigned char*)memcpy(p, val, length) + length;
 }
 
 unsigned char* add_IAPP_Message_ID(unsigned char* p, const char* val)
@@ -254,9 +228,7 @@ unsigned char* add_IAPP_Message_ID(unsigned char* p, const char* val)
     }
     p[2] = length;
     p+=3;
-    unsigned char *nextPtr = p;
-    nextPtr = (unsigned char*)memcpy(p, val, length);
-    return nextPtr+length;
+    return (unsigned char*)memcpy(p, val, length) + length;
 }
 
 unsigned char* add_IAPP_Phy_Type(unsigned char* p, const char* val)
@@ -273,85 +245,53 @@ unsigned char* add_IAPP_Phy_Type(unsigned char* p, const char* val)
     }
     p[2] = length;
     p+=3;
-    unsigned char *nextPtr = p;
-    nextPtr = (unsigned char*)memcpy(p, val, length);
-    return nextPtr+length;
+    return (unsigned char*)memcpy(p, val, length) + length;
 }
 
 unsigned char* add_IAPP_Regulatory_Domain(unsigned char* p, const char* val)
 {
     p[0] = TYPE_REGULATORY_DOMAIN;
     p[1] = 0; // Type Option
-    uint8_t length = 0;
-    for(unsigned i=0; i<32; i++){
-        if(val[i]!='\0'){
-            length++;
-        } else {
-            break;
-        }
-    }
+    uint8_t length = 1;
     p[2] = length;
     p+=3;
-    unsigned char *nextPtr = p;
-    nextPtr = (unsigned char*)memcpy(p, val, length);
-    return nextPtr+length;
+    return (unsigned char*)memcpy(p, val, length) + length;
 }
 
 unsigned char* add_IAPP_Radio_Channel(unsigned char* p, const char* val)
 {
     p[0] = TYPE_RADIO_CHANNEL;
     p[1] = 0; // Type Option
-    uint8_t length = 0;
-    for(unsigned i=0; i<32; i++){
-        if(val[i]!='\0'){
-            length++;
-        } else {
-            break;
-        }
-    }
+    uint8_t length = 1;
     p[2] = length;
     p+=3;
-    unsigned char *nextPtr = p;
-    nextPtr = (unsigned char*)memcpy(p, val, length);
-    return nextPtr+length;
+    return (unsigned char*)memcpy(p, val, length) + length;
 }
 
 unsigned char* add_IAPP_Beacon_Interval(unsigned char* p, const char* val)
 {
     p[0] = TYPE_BEACON_INTERVAL;
     p[1] = 0; // Type Option
-    uint8_t length = 0;
-    for(unsigned i=0; i<32; i++){
-        if(val[i]!='\0'){
-            length++;
-        } else {
-            break;
-        }
-    }
+    uint8_t length = 2;
     p[2] = length;
     p+=3;
-    unsigned char *nextPtr = p;
-    nextPtr = (unsigned char*)memcpy(p, val, length);
-    return nextPtr+length;
+    return (unsigned char*)memcpy(p, val, length) + length;
 }
 
 unsigned char* add_IAPP_OUI_Identifer(unsigned char* p, const char* val)
 {
     p[0] = TYPE_OUI_IDENTIFIER;
     p[1] = 0; // Type Option
-    uint8_t length = 0;
-    for(unsigned i=0; i<32; i++){
-        if(val[i]!='\0'){
-            length++;
-        } else {
-            break;
-        }
-    }
+    uint8_t length = 3;
     p[2] = length;
     p+=3;
-    unsigned char *nextPtr = p;
-    nextPtr = (unsigned char*)memcpy(p, val, length);
-    return nextPtr+length;
+    return (unsigned char*)memcpy(p, val, length) + length;
+}
+
+unsigned char* add_Terminator(unsigned char* p)
+{
+    const char* val = "\x3f";
+    return (unsigned char*)memcpy(p, val, 1);
 }
 
 void printhexvalue(void *ptr, int buflen)
@@ -731,21 +671,65 @@ int main(int argc, char *argv[]){
         //p = alloc_IAPP_msg();
         //add_IAPP_network_name(p, "Test1");
         //add_IAPP_radio_channel(p, 6);
+        
+        unsigned char* bufptr , *next = NULL;
+        bufptr = alloc_IAPP_msg(256, sizeof(char));
+        /* Fill the IAPP Structure */
+        next = add_IAPP_Version(bufptr, "\x01");
+        next = add_IAPP_Type(next, "\x02");
+        /* Fill the PDU Structure */
+        next = add_IAPP_SSID(next, "0x00Test1x0LanCom0");
+        next = add_IAPP_BSSID(next, "\x00\x0a\x00\x30\xdf\x00");
+        next = add_IAPP_Old_BSSID(next, "\x00\x00\x00\x00\x00\x00");
+        next = add_IAPP_Mobile_Station_Address(next, "Mobile Station");
+        next = add_IAPP_Capabilities(next, "\x20");
+        next = add_IAPP_Announce_Interval(next, "\x09\x1e");
+        next = add_IAPP_Handover_Timeout(next, "\x00\x00"); // length always 2
+        next = add_IAPP_Message_ID(next, "WikiWiki");
+        next = add_IAPP_Phy_Type(next, "\x07");
+        next = add_IAPP_Regulatory_Domain(next, "\x00");
+        next = add_IAPP_Radio_Channel(next, "\x06"); // length always 1
+        next = add_IAPP_Beacon_Interval(next, "\x00\x64"); // length always 2
+        next = add_IAPP_OUI_Identifer(next, "\x00\x10\x57"); // length always 3
+        next = add_Terminator(next); // Terminator to determine the End Of Buffer
 
-        /*  Send whole data buffer to the Server (Source 'AP') with MULTICAST IP 224.0.1.76  */
-        if(sendto(sd, databuf, readoutlen, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr))< 0)
 
-        {
-            perror("Sending Error");
-            close(sd);
-            exit(1);
+        int buf_modified_length = 0;
+        for(unsigned i=0; i< 256; i++){
+            if(bufptr[i]!='\x3f'){
+                ++buf_modified_length;
+            } else {
+                break;
+            }
         }
-        else
-        {
-            printf("The Transmitted Data is: \n");
-            hexdump(databuf, readoutlen);
-            printf("\n");
-        }
+
+       // for(unsigned i=0; i< 256; i++){
+       //     if(bufptr[i]=='\0' && bufptr[i+1]=='\0' && bufptr[i+2]=='\0' && bufptr[i+8]=='\0' ){
+       //         break;
+       //     } else {
+       //         ++buf_modified_length;
+       //     }
+       // }
+        printf("New Buffer Length: %i\n",buf_modified_length);
+        hexdump(bufptr, buf_modified_length);
+         
+       // /*  Send whole data buffer to the Server (Source 'AP') with MULTICAST IP 224.0.1.76  */
+       // if(sendto(sd, bufptr, buf_modified_length+1, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr))< 0)
+
+       // {
+       //     perror("Sending Error");
+       //     close(sd);
+       //     exit(1);
+       // }
+       // else
+       // {
+       //     printf("The Transmitted Data is: \n");
+       //     hexdump(bufptr, buf_modified_length+1);
+       //     printf("\n");
+       // }
+
+        free(bufptr); 
     }
+
     return 0;
 }
