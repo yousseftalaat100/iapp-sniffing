@@ -16,8 +16,10 @@ using namespace std;
 
 #define GENERAL_VERSION 1
 
-#define ANNOUNCE_RESPONSE 1
-#define HANDOVER_REQUEST 2
+#define ANNOUNCE_REQUEST 0 
+#define ANNOUNCE_RESPONSE 1 
+#define HANDOVER_REQUEST 2 
+#define HANDOVER_RESPONSE 3 
 
 #define TYPE_NETWORK_NAME 0
 #define TYPE_BSSID 1
@@ -114,12 +116,12 @@ unsigned char* add_IAPP_Type(unsigned char* p, const char* val)
     return nextPtr+1;
 }
 
-unsigned char* add_IAPP_SSID(unsigned char* p, const char* val)
+unsigned char* add_IAPP_SSID(unsigned char* p, char* val)
 {
     p[0] = TYPE_NETWORK_NAME;
     p[1] = 0; // Type Option
     uint8_t length = 0;
-    for(unsigned i=0; i<32; i++){
+    for(unsigned i=0; i<33; i++){
         if(val[i]!='\0'){
             length++;
         } else {
@@ -128,18 +130,18 @@ unsigned char* add_IAPP_SSID(unsigned char* p, const char* val)
     }
     p[2] = length;
     p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    return (unsigned char*)memcpy(p, (const char*)val, length) + length;
 
 }
 
-unsigned char* add_IAPP_BSSID(unsigned char* p, const char* val)
+unsigned char* add_IAPP_BSSID(unsigned char* p, uint8_t* val)
 {
     p[0] = TYPE_BSSID;
     p[1] = 0;
     uint8_t length=6;
     p[2] = length;
     p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    return (unsigned char*)memcpy(p, (const char*)val, length) + length;
 }
 
 unsigned char* add_IAPP_Old_BSSID(unsigned char* p, const char* val)
@@ -156,14 +158,7 @@ unsigned char* add_IAPP_Mobile_Station_Address(unsigned char* p, const char* val
 {
     p[0] = TYPE_MOBILE_STATION_ADDRESS;
     p[1] = 0; // Type Option
-    uint8_t length = 0;
-    for(unsigned i=0; i<6; i++){
-        if(val[i]!='\0'){
-            length++;
-        } else {
-            break;
-        }
-    }
+    uint8_t length = 6;
     p[2] = length;
     p+=3;
     return (unsigned char*)memcpy(p, val, length) + length;
@@ -173,14 +168,7 @@ unsigned char* add_IAPP_Capabilities(unsigned char* p, const char* val)
 {
     p[0] = TYPE_CAPABILITIES;
     p[1] = 0; // Type Option
-    uint8_t length = 0;
-    for(unsigned i=0; i<32; i++){
-        if(val[i]!='\0'){
-            length++;
-        } else {
-            break;
-        }
-    }
+    uint8_t length = 1;
     p[2] = length;
     p+=3;
     return (unsigned char*)memcpy(p, val, length) + length;
@@ -190,15 +178,7 @@ unsigned char* add_IAPP_Announce_Interval(unsigned char* p, const char* val)
 {
     p[0] = TYPE_ANNOUNCE_INTERVAL;
     p[1] = 0;
-    uint8_t length=0;
-    for(unsigned i=0; i<32;i++){
-        if(val[i]!='\0'){
-            length++;
-        } else {
-            break;
-        }
-
-    }
+    uint8_t length=2;
     p[2] = length;
     p+=3;
     return (unsigned char*)memcpy(p, val, length) + length;
@@ -218,14 +198,7 @@ unsigned char* add_IAPP_Message_ID(unsigned char* p, const char* val)
 {
     p[0] = TYPE_MESSAGE_ID;
     p[1] = 0; // Type Option
-    uint8_t length = 0;
-    for(unsigned i=0; i<32; i++){
-        if(val[i]!='\0'){
-            length++;
-        } else {
-            break;
-        }
-    }
+    uint8_t length = 2;
     p[2] = length;
     p+=3;
     return (unsigned char*)memcpy(p, val, length) + length;
@@ -235,14 +208,7 @@ unsigned char* add_IAPP_Phy_Type(unsigned char* p, const char* val)
 {
     p[0] = TYPE_PHY_TYPE;
     p[1] = 0; // Type Option
-    uint8_t length = 0;
-    for(unsigned i=0; i<32; i++){
-        if(val[i]!='\0'){
-            length++;
-        } else {
-            break;
-        }
-    }
+    uint8_t length = 1;
     p[2] = length;
     p+=3;
     return (unsigned char*)memcpy(p, val, length) + length;
@@ -290,6 +256,7 @@ unsigned char* add_IAPP_OUI_Identifer(unsigned char* p, const char* val)
 
 unsigned char* add_Terminator(unsigned char* p)
 {
+    /* Terminate with insertion of '?' */
     const char* val = "\x3f";
     return (unsigned char*)memcpy(p, val, 1);
 }
@@ -423,7 +390,6 @@ int main(int argc, char *argv[]){
 
     /* Read from the socket */
     datalen = sizeof(databuf);
-    //datalen = sizeof(databuf); // with normal unsigned char buffer of 128 bytes
     int readoutlen = read(sd, databuf, datalen);
     printf("-- Message Length : %d\n", readoutlen);
     if(readoutlen < 0)
@@ -466,11 +432,19 @@ int main(int argc, char *argv[]){
 
         switch(IAPPPtr->general_type)
         {
-            case ANNOUNCE_RESPONSE:
+            case ANNOUNCE_REQUEST:
                 printf("General Type: Announce Request (%u)\n", IAPPPtr->general_type);
+                break;
+
+            case ANNOUNCE_RESPONSE:
+                printf("General Type: Announce Response (%u)\n", IAPPPtr->general_type);
 
                 break;
             case HANDOVER_REQUEST:
+                printf("General Type: Handover Request  (%u)\n", IAPPPtr->general_type);
+
+                break;
+            case HANDOVER_RESPONSE:
                 printf("General Type: Handover Response  (%u)\n", IAPPPtr->general_type);
 
                 break;
@@ -493,6 +467,7 @@ int main(int argc, char *argv[]){
         //printf("\n");
 
         //alloc_IAPP_msg();
+
 
         uint8_t dataframeslength=0;
         uint8_t no_of_elements = 0;
@@ -595,7 +570,6 @@ int main(int argc, char *argv[]){
                     no_of_elements +=3;
                     break;
 
-
                 case TYPE_PHY_TYPE:
                     printf("- Phy Type : (%u) \n", p->type);
                     printf("- Length is : %u \n", p->length);
@@ -645,19 +619,18 @@ int main(int argc, char *argv[]){
                     dataframeslength += p->length;
                     no_of_elements +=3;
                     break;
+
                 default:
                     printf("Unknown PDU Type : (%u)\n", p->type);
                     dataframeslength += p->length;
                     no_of_elements +=3;
-
             }
             /*      Shifting the address for i      */
             i += sizeof(TLV) + (p->length); //next beginning
 
             printf("\n");
-
         }
-
+        /* Comments */
         /* Manipulate the databuffer to get it sending exactly what you want */
         /* Now I have the total length of values [in bytes],
            /  but how many [bytes are in the whole Packet]*/
@@ -672,63 +645,65 @@ int main(int argc, char *argv[]){
         //add_IAPP_network_name(p, "Test1");
         //add_IAPP_radio_channel(p, 6);
         
-        unsigned char* bufptr , *next = NULL;
-        bufptr = alloc_IAPP_msg(256, sizeof(char));
-        /* Fill the IAPP Structure */
-        next = add_IAPP_Version(bufptr, "\x01");
-        next = add_IAPP_Type(next, "\x02");
-        /* Fill the PDU Structure */
-        next = add_IAPP_SSID(next, "0x00Test1x0LanCom0");
-        next = add_IAPP_BSSID(next, "\x00\x0a\x00\x30\xdf\x00");
-        next = add_IAPP_Old_BSSID(next, "\x00\x00\x00\x00\x00\x00");
-        next = add_IAPP_Mobile_Station_Address(next, "Mobile Station");
-        next = add_IAPP_Capabilities(next, "\x20");
-        next = add_IAPP_Announce_Interval(next, "\x09\x1e");
-        next = add_IAPP_Handover_Timeout(next, "\x00\x00"); // length always 2
-        next = add_IAPP_Message_ID(next, "WikiWiki");
-        next = add_IAPP_Phy_Type(next, "\x07");
-        next = add_IAPP_Regulatory_Domain(next, "\x00");
-        next = add_IAPP_Radio_Channel(next, "\x06"); // length always 1
-        next = add_IAPP_Beacon_Interval(next, "\x00\x64"); // length always 2
-        next = add_IAPP_OUI_Identifer(next, "\x00\x10\x57"); // length always 3
-        next = add_Terminator(next); // Terminator to determine the End Of Buffer
+       // unsigned char* bufptr , *next = NULL;
+       // bufptr = alloc_IAPP_msg(256, sizeof(char));
+       // /* Fill the IAPP Structure */
+       // next = add_IAPP_Version(bufptr, "\x01");
+       // next = add_IAPP_Type(next, "\x02");
+       //
+       // /* Fill the PDU Structure */
+       // char ssid[33]="LancomTest101";
+       // next = add_IAPP_SSID(next, ssid); // length 1-33
+       // uint8_t bssid[6]={0x12,0x23,0x34,0x45,0x56,0x67};
+       // next = add_IAPP_BSSID(next, bssid); // length always 6
+       // next = add_IAPP_Old_BSSID(next, "\x00\x00\x00\x00\x00\x00"); // length always 6
+       // next = add_IAPP_Mobile_Station_Address(next, "Mobile Station"); // length always 6
+       // next = add_IAPP_Capabilities(next, "\x20"); // length always 1
+       // next = add_IAPP_Announce_Interval(next, "\x09\x1e"); // length always 2
+       // next = add_IAPP_Handover_Timeout(next, "\x00\x00"); // length always 2
+       // next = add_IAPP_Message_ID(next, "WikiWiki"); // length always 2
+       // next = add_IAPP_Phy_Type(next, "\x07"); // length always 1
+       // next = add_IAPP_Regulatory_Domain(next, "\x00"); // length always 1
+       // next = add_IAPP_Radio_Channel(next, "\x06"); // length always 1
+       // next = add_IAPP_Beacon_Interval(next, "\x00\x64"); // length always 2
+       // next = add_IAPP_OUI_Identifer(next, "\x00\x10\x56\x57"); // length always 3
+       // next = add_Terminator(next); // Terminator to determine the End Of Buffer
 
-
-        int buf_modified_length = 0;
-        for(unsigned i=0; i< 256; i++){
-            if(bufptr[i]!='\x3f'){
-                ++buf_modified_length;
-            } else {
-                break;
-            }
-        }
-
+       // int buf_modified_length = 0;
        // for(unsigned i=0; i< 256; i++){
-       //     if(bufptr[i]=='\0' && bufptr[i+1]=='\0' && bufptr[i+2]=='\0' && bufptr[i+8]=='\0' ){
-       //         break;
-       //     } else {
+       //     if(bufptr[i]!='\x3f'){
        //         ++buf_modified_length;
+       //     } else {
+       //         break;
        //     }
        // }
-        printf("New Buffer Length: %i\n",buf_modified_length);
-        hexdump(bufptr, buf_modified_length);
-         
-       // /*  Send whole data buffer to the Server (Source 'AP') with MULTICAST IP 224.0.1.76  */
-       // if(sendto(sd, bufptr, buf_modified_length+1, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr))< 0)
 
-       // {
-       //     perror("Sending Error");
-       //     close(sd);
-       //     exit(1);
-       // }
-       // else
-       // {
-       //     printf("The Transmitted Data is: \n");
-       //     hexdump(bufptr, buf_modified_length+1);
-       //     printf("\n");
-       // }
+       //// for(unsigned i=0; i< 256; i++){
+       ////     if(bufptr[i]=='\0' && bufptr[i+1]=='\0' && bufptr[i+2]=='\0' && bufptr[i+8]=='\0' ){
+       ////         break;
+       ////     } else {
+       ////         ++buf_modified_length;
+       ////     }
+       //// }
+       // printf("New Buffer Length: %i\n",buf_modified_length);
+       // hexdump(bufptr, buf_modified_length);
+       //  
+       //// /*  Send whole data buffer to the Server (Source 'AP') with MULTICAST IP 224.0.1.76  */
+       //// if(sendto(sd, bufptr, buf_modified_length+1, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr))< 0)
 
-        free(bufptr); 
+       //// {
+       ////     perror("Sending Error");
+       ////     close(sd);
+       ////     exit(1);
+       //// }
+       //// else
+       //// {
+       ////     printf("The Transmitted Data is: \n");
+       ////     hexdump(bufptr, buf_modified_length+1);
+       ////     printf("\n");
+       //// }
+
+       // free(bufptr); 
     }
 
     return 0;
