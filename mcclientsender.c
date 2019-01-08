@@ -106,24 +106,21 @@ unsigned char* add_IAPP_ver_type(struct IAPP* IAPPPtr, unsigned char* sent_buffe
     return sent_buffer;
 }
 
-unsigned char* add_IAPP_Version(unsigned char* p, const char* val)
+void add_IAPP_Version(unsigned char** p, const char* val)
 {
-    unsigned char *nextPtr = p;
-    nextPtr = (unsigned char*)memcpy(p, val, 1);
-    return nextPtr+1;
+    fprintf(stderr, "TEST: %p\n", *p);
+    *p = (unsigned char*)memcpy(*p, val, 1) + 1;
 }
 
-unsigned char* add_IAPP_Type(unsigned char* p, const char* val)
+void add_IAPP_Type(unsigned char** p, const char* val)
 {
-    unsigned char *nextPtr = p;
-    nextPtr = (unsigned char*)memcpy(p, val, 1);
-    return nextPtr+1;
+    *p = (unsigned char*)memcpy(*p, val, 1) + 1;
 }
 
-unsigned char* add_IAPP_SSID(unsigned char* p, char* val)
+void add_IAPP_SSID(unsigned char** p, char* val)
 {
-    p[0] = TYPE_NETWORK_NAME;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_NETWORK_NAME;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 0;
     for(unsigned i=0; i<33; i++){
         if(val[i]!='\0'){
@@ -132,137 +129,136 @@ unsigned char* add_IAPP_SSID(unsigned char* p, char* val)
             break;
         }
     }
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, (const char*)val, length) + length;
-
+    (*p)[2] = length;
+    (*p)+=3;
+    (*p) = (unsigned char*)memcpy(*p, (const char*)val, length) + length;
 }
 
-unsigned char* add_IAPP_BSSID(unsigned char* p, uint8_t* val)
+void add_IAPP_BSSID(unsigned char** p, uint8_t* val)
 {
-    p[0] = TYPE_BSSID;
-    p[1] = 0;
+    (*p)[0] = TYPE_BSSID;
+    (*p)[1] = 0;
     uint8_t length=6;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, (const char*)val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, (const char*)val, length) + length;
 }
 
-unsigned char* add_IAPP_Old_BSSID(unsigned char* p, const char* val)
+void add_IAPP_Old_BSSID(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_OLD_BSSID;
-    p[1] = 0;
+    (*p)[0] = TYPE_OLD_BSSID;
+    (*p)[1] = 0;
     uint8_t length=6;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_Mobile_Station_Address(unsigned char* p, const char* val)
+void add_IAPP_Mobile_Station_Address(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_MOBILE_STATION_ADDRESS;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_MOBILE_STATION_ADDRESS;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 6;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_Capabilities(unsigned char* p, const char* val)
+void add_IAPP_Capabilities(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_CAPABILITIES;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_CAPABILITIES;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 1;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_Announce_Interval(unsigned char* p, const char* val)
+void add_IAPP_Announce_Interval(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_ANNOUNCE_INTERVAL;
-    p[1] = 0;
+    (*p)[0] = TYPE_ANNOUNCE_INTERVAL;
+    (*p)[1] = 0;
     uint8_t length=2;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_Handover_Timeout(unsigned char* p, const char* val)
+void add_IAPP_Handover_Timeout(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_HANDOVER_TIMEOUT;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_HANDOVER_TIMEOUT;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 2;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_Message_ID(unsigned char* p, const char* val)
+void add_IAPP_Message_ID(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_MESSAGE_ID;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_MESSAGE_ID;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 2;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_Phy_Type(unsigned char* p, const char* val)
+void add_IAPP_Phy_Type(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_PHY_TYPE;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_PHY_TYPE;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 1;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_Regulatory_Domain(unsigned char* p, const char* val)
+void add_IAPP_Regulatory_Domain(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_REGULATORY_DOMAIN;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_REGULATORY_DOMAIN;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 1;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_Radio_Channel(unsigned char* p, const char* val)
+void add_IAPP_Radio_Channel(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_RADIO_CHANNEL;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_RADIO_CHANNEL;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 1;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_Beacon_Interval(unsigned char* p, const char* val)
+void add_IAPP_Beacon_Interval(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_BEACON_INTERVAL;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_BEACON_INTERVAL;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 2;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_OUI_Identifer(unsigned char* p, const char* val)
+void add_IAPP_OUI_Identifer(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_OUI_IDENTIFIER;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_OUI_IDENTIFIER;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 3;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_Terminator(unsigned char* p)
+void add_Terminator(unsigned char** p)
 {
     /* Terminate with insertion of '?' */
     const char* val = "\x3f";
-    return (unsigned char*)memcpy(p, val, 1);
+    *p = (unsigned char*)memcpy(*p, val, 1);
 }
 
 void printhexvalue(void *ptr, int buflen)
@@ -398,36 +394,46 @@ int main(int argc, char *argv[]){
         memset((char *) &dest_addr, 0, sizeof(dest_addr));
         dest_addr.sin_family = AF_INET;
         dest_addr.sin_port = htons(2313);
-        dest_addr.sin_addr.s_addr= inet_addr("224.0.1.76");
+        dest_addr.sin_addr.s_addr= inet_addr("10.93.0.253");
         
-
-        unsigned char* bufptr , *next = NULL;
+        /* Add the Data */        
+        unsigned char* bufptr = NULL; // bufptr: at the end of buffer
+        unsigned char* bufptr2 = NULL; // bufptr2: at the beginning of buffer
         bufptr = alloc_IAPP_msg(256, sizeof(char));
+        bufptr2 = bufptr;
+
         /* Fill the IAPP Structure */
-        next = add_IAPP_Version(bufptr, "\x01");
-        next = add_IAPP_Type(next, "\x00");
+        fprintf(stderr, "TEST1: %p\n", bufptr);
+        add_IAPP_Version(&bufptr, "\x01");
+        fprintf(stderr, "TEST3: %p\n", bufptr);
+        add_IAPP_Type(&bufptr, "\x00");
+        fprintf(stderr, "TEST4: %p\n", bufptr);
        
         /* Fill the PDU Structure */
         char ssid[33]="JoeSaysHello";
-        next = add_IAPP_SSID(next, ssid); // length 1-33
+        add_IAPP_SSID(&bufptr, ssid); // length 1-33
+        fprintf(stderr, "TEST5: %p\n", bufptr);
         uint8_t bssid[6]={0x12,0x23,0x34,0x45,0x56,0x67};
-        next = add_IAPP_BSSID(next, bssid); // length always 6
-        next = add_IAPP_Old_BSSID(next, "\x00\x00\x00\x00\x00\x00"); // length always 6
-        next = add_IAPP_Mobile_Station_Address(next, "Mobile"); // length always 6
-        next = add_IAPP_Capabilities(next, "\x20"); // length always 1
-        next = add_IAPP_Announce_Interval(next, "\x00\x78"); // length always 2
-        next = add_IAPP_Handover_Timeout(next, "\x03\xe8"); // length always 2
-        next = add_IAPP_Message_ID(next, "\x00\x50"); // length always 2
-        next = add_IAPP_Phy_Type(next, "\x07"); // length always 1
-        next = add_IAPP_Regulatory_Domain(next, "\x00"); // length always 1
-        next = add_IAPP_Radio_Channel(next, "\x06"); // length always 1
-        next = add_IAPP_Beacon_Interval(next, "\x00\x64"); // length always 2
-        next = add_IAPP_OUI_Identifer(next, "\x10\x56\x57"); // length always 3
-        next = add_Terminator(next); // Terminator to determine the End Of Buffer
+        add_IAPP_BSSID(&bufptr, bssid); // length always 6
+        hexdump(bufptr2, 32);
+        fprintf(stderr, "TEST6: %p\n", bufptr);
+        add_IAPP_Old_BSSID(&bufptr, "\x00\x00\x00\x00\x00\x00"); // length always 6
+        add_IAPP_Mobile_Station_Address(&bufptr, "Mobile"); // length always 6
+        add_IAPP_Capabilities(&bufptr, "\x20"); // length always 1
+        add_IAPP_Announce_Interval(&bufptr, "\x00\x78"); // length always 2
+        add_IAPP_Handover_Timeout(&bufptr, "\x03\xe8"); // length always 2
+        add_IAPP_Message_ID(&bufptr, "\x00\x50"); // length always 2
+        add_IAPP_Phy_Type(&bufptr, "\x07"); // length always 1
+        add_IAPP_Regulatory_Domain(&bufptr, "\x00"); // length always 1
+        add_IAPP_Radio_Channel(&bufptr, "\x06"); // length always 1
+        add_IAPP_Beacon_Interval(&bufptr, "\x00\x64"); // length always 2
+        add_IAPP_OUI_Identifer(&bufptr, "\x10\x56\x57"); // length always 3
+        add_Terminator(&bufptr); // Terminator to determine the End Of Buffer
 
+        /* calculate the length of buffer */
         int buf_modified_length = 0;
         for(unsigned i=0; i< 256; i++){
-            if(bufptr[i]!='\x3f'){
+            if(bufptr2[i]!='\x3f'){
                 ++buf_modified_length;
             } else {
                 break;
@@ -438,9 +444,8 @@ int main(int argc, char *argv[]){
         printf("Sending datagram message...OK.\n");
         printf("\nThe message to multicast server is: \n");
         printf("New Buffer Length: %i\n",buf_modified_length);
-         
         /*  Send whole data buffer to the Server (Source 'AP') with MULTICAST IP 224.0.1.76  */
-        if(sendto(sd, bufptr, buf_modified_length, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr))< 0)
+        if(sendto(sd, bufptr2, buf_modified_length, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr))< 0)
 
         {
             perror("Sending Error");
@@ -450,12 +455,11 @@ int main(int argc, char *argv[]){
         else
         {
             printf("The Transmitted Data is: \n");
-            hexdump(bufptr, buf_modified_length);
+            hexdump(bufptr2, buf_modified_length);
             printf("\n");
         }
-
         printf("\n");
-        free(bufptr); 
+        free(bufptr2); 
 
         /* Commented */
 //        // 1. Define and Initialize the IAPP Pointer to the 'original Buffer'

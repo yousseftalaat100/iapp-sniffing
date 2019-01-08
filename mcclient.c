@@ -408,7 +408,7 @@ int main(int argc, char *argv[]){
         memset((char *) &dest_addr, 0, sizeof(dest_addr));
         dest_addr.sin_family = AF_INET;
         dest_addr.sin_port = htons(2313);
-        dest_addr.sin_addr.s_addr= inet_addr("10.93.0.253");
+        dest_addr.sin_addr.s_addr= inet_addr("224.0.1.76");
 
         printf("Reading datagram message...OK.\n");
         //printf("Got Data Packet from %s\n", inet_ntoa(dest_addr));
