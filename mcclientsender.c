@@ -90,21 +90,6 @@ unsigned char* alloc_IAPP_msg(int nmemb, uint8_t size)
     return (unsigned char*)calloc(nmemb, size);
 }
 
-unsigned char* add_IAPP_ver_type(struct IAPP* IAPPPtr, unsigned char* sent_buffer)
-{
-    if(IAPPPtr->general_version == GENERAL_VERSION)
-        sent_buffer[0] = IAPPPtr->general_version;
-    
-    if(IAPPPtr->general_type == ANNOUNCE_REQUEST)
-        sent_buffer[1] = IAPPPtr->general_type;
-    if(IAPPPtr->general_type == ANNOUNCE_RESPONSE)
-        sent_buffer[1] = IAPPPtr->general_type;
-    if(IAPPPtr->general_type == HANDOVER_REQUEST)
-        sent_buffer[1] = IAPPPtr->general_type;
-    if(IAPPPtr->general_type == HANDOVER_RESPONSE)
-        sent_buffer[1] = IAPPPtr->general_type;
-    return sent_buffer;
-}
 
 void add_IAPP_Version(unsigned char** p, const char* val)
 {
@@ -117,7 +102,7 @@ void add_IAPP_Type(unsigned char** p, const char* val)
     *p = (unsigned char*)memcpy(*p, val, 1) + 1;
 }
 
-void add_IAPP_SSID(unsigned char** p, char* val)
+void add_IAPP_SSID(unsigned char** p, unsigned char* val)
 {
     (*p)[0] = TYPE_NETWORK_NAME;
     (*p)[1] = 0; // Type Option
@@ -256,8 +241,8 @@ void add_IAPP_OUI_Identifer(unsigned char** p, const char* val)
 
 void add_Terminator(unsigned char** p)
 {
-    /* Terminate with insertion of '?' */
-    const char* val = "\x3f";
+    /* Terminate with insertion of ' " ' */
+    const char* val = "\x22";
     *p = (unsigned char*)memcpy(*p, val, 1);
 }
 
@@ -394,7 +379,7 @@ int main(int argc, char *argv[]){
         memset((char *) &dest_addr, 0, sizeof(dest_addr));
         dest_addr.sin_family = AF_INET;
         dest_addr.sin_port = htons(2313);
-        dest_addr.sin_addr.s_addr= inet_addr("10.93.0.253");
+        dest_addr.sin_addr.s_addr= inet_addr("224.0.1.76");
         
         /* Add the Data */        
         unsigned char* bufptr = NULL; // bufptr: at the end of buffer
@@ -410,12 +395,12 @@ int main(int argc, char *argv[]){
         fprintf(stderr, "TEST4: %p\n", bufptr);
        
         /* Fill the PDU Structure */
-        char ssid[33]="JoeSaysHello";
-        add_IAPP_SSID(&bufptr, ssid); // length 1-33
+        unsigned char ssid[33]="SSID Space Test?0000000000003256";
+        add_IAPP_SSID(&bufptr, ssid); // length 2-33
         fprintf(stderr, "TEST5: %p\n", bufptr);
         uint8_t bssid[6]={0x12,0x23,0x34,0x45,0x56,0x67};
         add_IAPP_BSSID(&bufptr, bssid); // length always 6
-        hexdump(bufptr2, 32);
+        // hexdump(bufptr2, 32);
         fprintf(stderr, "TEST6: %p\n", bufptr);
         add_IAPP_Old_BSSID(&bufptr, "\x00\x00\x00\x00\x00\x00"); // length always 6
         add_IAPP_Mobile_Station_Address(&bufptr, "Mobile"); // length always 6
@@ -433,7 +418,7 @@ int main(int argc, char *argv[]){
         /* calculate the length of buffer */
         int buf_modified_length = 0;
         for(unsigned i=0; i< 256; i++){
-            if(bufptr2[i]!='\x3f'){
+            if(bufptr2[i]!='\x22'){
                 ++buf_modified_length;
             } else {
                 break;

@@ -493,7 +493,7 @@ int main(int argc, char *argv[]){
                     }
                     printf("- Network Name : (%u) \n", p->type);
                     printf("- Length is : %u \n", p->length);
-                    printf("- Value : %s - ", p->value);
+                    printf("- Value : %.*s - ", p->length, p->value);
                     printhexvalue(p->value, p->length);
                     printf("\n");
                     dataframeslength += p->length;
