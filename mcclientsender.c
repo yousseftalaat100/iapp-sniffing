@@ -391,11 +391,11 @@ int main(int argc, char *argv[]){
         fprintf(stderr, "TEST1: %p\n", bufptr);
         add_IAPP_Version(&bufptr, "\x01");
         fprintf(stderr, "TEST3: %p\n", bufptr);
-        add_IAPP_Type(&bufptr, "\x00");
+        add_IAPP_Type(&bufptr, "\x02");
         fprintf(stderr, "TEST4: %p\n", bufptr);
        
         /* Fill the PDU Structure */
-        unsigned char ssid[33]="SSID Space Test?0000000000003256";
+        unsigned char ssid[33]="SSID Lancom-101 ";
         add_IAPP_SSID(&bufptr, ssid); // length 2-33
         fprintf(stderr, "TEST5: %p\n", bufptr);
         uint8_t bssid[6]={0x12,0x23,0x34,0x45,0x56,0x67};

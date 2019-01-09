@@ -12,8 +12,6 @@
 #include <ctype.h>
 #include <iostream>
 
-using namespace std;
-
 #define GENERAL_VERSION 1
 
 #define ANNOUNCE_REQUEST 0 
@@ -78,48 +76,27 @@ struct IAPP
 
 }__attribute__((packed));
 
-/* another way to -fill the buffer- to send it
-   p = alloc_IAPP_msg();
-   add_IAPP_network_name(p, "ssid");
-   add_IAPP_radio_channel(p, 6);
-   */
-// malloc a buffer (using calloc for arrays)
-
 unsigned char* alloc_IAPP_msg(int nmemb, uint8_t size)
 {
     return (unsigned char*)calloc(nmemb, size);
 }
 
-unsigned char* add_IAPP_ver_type(struct IAPP* IAPPPtr, unsigned char* sent_buffer)
-{
-    if(IAPPPtr->general_version == GENERAL_VERSION)
-        sent_buffer[0] = IAPPPtr->general_version;
-    if(IAPPPtr->general_type == ANNOUNCE_RESPONSE)
-        sent_buffer[1] = IAPPPtr->general_type;
-    if(IAPPPtr->general_type == HANDOVER_REQUEST)
-        sent_buffer[1] = IAPPPtr->general_type;
 
-    return sent_buffer;
+void add_IAPP_Version(unsigned char** p, const char* val)
+{
+    fprintf(stderr, "TEST: %p\n", *p);
+    *p = (unsigned char*)memcpy(*p, val, 1) + 1;
 }
 
-unsigned char* add_IAPP_Version(unsigned char* p, const char* val)
+void add_IAPP_Type(unsigned char** p, const char* val)
 {
-    unsigned char *nextPtr = p;
-    nextPtr = (unsigned char*)memcpy(p, val, 1);
-    return nextPtr+1;
+    *p = (unsigned char*)memcpy(*p, val, 1) + 1;
 }
 
-unsigned char* add_IAPP_Type(unsigned char* p, const char* val)
+void add_IAPP_SSID(unsigned char** p, unsigned char* val)
 {
-    unsigned char *nextPtr = p;
-    nextPtr = (unsigned char*)memcpy(p, val, 1);
-    return nextPtr+1;
-}
-
-unsigned char* add_IAPP_SSID(unsigned char* p, char* val)
-{
-    p[0] = TYPE_NETWORK_NAME;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_NETWORK_NAME;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 0;
     for(unsigned i=0; i<33; i++){
         if(val[i]!='\0'){
@@ -128,137 +105,136 @@ unsigned char* add_IAPP_SSID(unsigned char* p, char* val)
             break;
         }
     }
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, (const char*)val, length) + length;
-
+    (*p)[2] = length;
+    (*p)+=3;
+    (*p) = (unsigned char*)memcpy(*p, (const char*)val, length) + length;
 }
 
-unsigned char* add_IAPP_BSSID(unsigned char* p, uint8_t* val)
+void add_IAPP_BSSID(unsigned char** p, uint8_t* val)
 {
-    p[0] = TYPE_BSSID;
-    p[1] = 0;
+    (*p)[0] = TYPE_BSSID;
+    (*p)[1] = 0;
     uint8_t length=6;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, (const char*)val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, (const char*)val, length) + length;
 }
 
-unsigned char* add_IAPP_Old_BSSID(unsigned char* p, const char* val)
+void add_IAPP_Old_BSSID(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_OLD_BSSID;
-    p[1] = 0;
+    (*p)[0] = TYPE_OLD_BSSID;
+    (*p)[1] = 0;
     uint8_t length=6;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_Mobile_Station_Address(unsigned char* p, const char* val)
+void add_IAPP_Mobile_Station_Address(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_MOBILE_STATION_ADDRESS;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_MOBILE_STATION_ADDRESS;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 6;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_Capabilities(unsigned char* p, const char* val)
+void add_IAPP_Capabilities(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_CAPABILITIES;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_CAPABILITIES;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 1;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_Announce_Interval(unsigned char* p, const char* val)
+void add_IAPP_Announce_Interval(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_ANNOUNCE_INTERVAL;
-    p[1] = 0;
+    (*p)[0] = TYPE_ANNOUNCE_INTERVAL;
+    (*p)[1] = 0;
     uint8_t length=2;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_Handover_Timeout(unsigned char* p, const char* val)
+void add_IAPP_Handover_Timeout(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_HANDOVER_TIMEOUT;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_HANDOVER_TIMEOUT;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 2;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_Message_ID(unsigned char* p, const char* val)
+void add_IAPP_Message_ID(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_MESSAGE_ID;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_MESSAGE_ID;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 2;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_Phy_Type(unsigned char* p, const char* val)
+void add_IAPP_Phy_Type(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_PHY_TYPE;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_PHY_TYPE;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 1;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_Regulatory_Domain(unsigned char* p, const char* val)
+void add_IAPP_Regulatory_Domain(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_REGULATORY_DOMAIN;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_REGULATORY_DOMAIN;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 1;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_Radio_Channel(unsigned char* p, const char* val)
+void add_IAPP_Radio_Channel(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_RADIO_CHANNEL;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_RADIO_CHANNEL;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 1;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_Beacon_Interval(unsigned char* p, const char* val)
+void add_IAPP_Beacon_Interval(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_BEACON_INTERVAL;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_BEACON_INTERVAL;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 2;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_IAPP_OUI_Identifer(unsigned char* p, const char* val)
+void add_IAPP_OUI_Identifer(unsigned char** p, const char* val)
 {
-    p[0] = TYPE_OUI_IDENTIFIER;
-    p[1] = 0; // Type Option
+    (*p)[0] = TYPE_OUI_IDENTIFIER;
+    (*p)[1] = 0; // Type Option
     uint8_t length = 3;
-    p[2] = length;
-    p+=3;
-    return (unsigned char*)memcpy(p, val, length) + length;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-unsigned char* add_Terminator(unsigned char* p)
+void add_Terminator(unsigned char** p)
 {
-    /* Terminate with insertion of '?' */
-    const char* val = "\x3f";
-    return (unsigned char*)memcpy(p, val, 1);
+    /* Terminate with insertion of ' " ' */
+    const char* val = "\x22";
+    *p = (unsigned char*)memcpy(*p, val, 1);
 }
 
 void printhexvalue(void *ptr, int buflen)
@@ -324,8 +300,7 @@ unsigned char databuf[BUFFER_SIZE];
 
 int main(int argc, char *argv[]){
 
-
-    /*Create a datagram socket on which to receive*/
+    /* Create a datagram socket on which to receive */
     sd = socket(AF_INET, SOCK_DGRAM, 0);
     if(sd < 0)
     {
@@ -378,6 +353,7 @@ int main(int argc, char *argv[]){
         close(sd);
         exit(1);
     }
+ 
     if(setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&group, sizeof(group)) < 0)
     {
         perror("Adding multicast group error");
@@ -388,322 +364,204 @@ int main(int argc, char *argv[]){
         printf("Adding multicast group...OK.\n");
     }
 
-    /* Read from the socket */
+    /* Length of Buffer */
     datalen = sizeof(databuf);
-    int readoutlen = read(sd, databuf, datalen);
+    /* Which source IP Address */
+    struct sockaddr_in from;
+    socklen_t fromLen = sizeof(from);
+    int readoutlen = recvfrom(sd, databuf, sizeof(databuf), 0, (struct sockaddr*)&from, &fromLen);
+    char ip[16];
+    inet_ntop(AF_INET, &from.sin_addr, ip, sizeof(ip));
+    printf("-- Source IP Address: %s -- Port: %i ", ip, ntohs(from.sin_port));
     printf("-- Message Length : %d\n", readoutlen);
+
+    /* Check Receiving */
     if(readoutlen < 0)
     {
         perror("Reading datagram message error");
         close(sd);
         exit(1);
     }
-    else
+    /* Send to the proper port number with the IP address
+       specified as Multicast IP Address to THIS -->> 224.0.1.76 */
+    memset((char *) &dest_addr, 0, sizeof(dest_addr));
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_port = htons(2313);
+    dest_addr.sin_addr.s_addr= inet_addr("224.0.1.76");
+    printf("-- Multicast Destination IP Address: %s -- Port: %i --\n", inet_ntoa(dest_addr.sin_addr), ntohs(dest_addr.sin_port));
+
+    /* Read from the socket */
+    printf("Reading datagram message...OK.\n");
+    printf("\nThe message from multicast server is: \n");
+    hexdump(databuf, readoutlen); // This is to print out the Data Package
+    printf("\n\n");
+
+
+    // 1. Define and Initialize the IAPP Pointer to the 'original Buffer'
+    struct IAPP *IAPPPtr = (struct IAPP*)databuf;
+
+    // 2.(a) Define another databuffer (*bytep) shifted by two
+    unsigned char *bytep = databuf+2; /* skip version + type field sven */
+    // 2.(b) Define and Initialize the tlv Pointer to the 'modified Buffer'
+    struct TLV *p =(struct TLV *)bytep;
+
+    /*      Check for General Version and Type of Packet    */
+    printf("General Version: (%u)\n", IAPPPtr->general_version);
+
+    switch(IAPPPtr->general_type)
     {
-        /**********************************************/
-        /* HERE BEGINS THE MANIPULATING OF DATA... */
+        case ANNOUNCE_REQUEST:
+            printf("General Type: Announce Request (%u)\n", IAPPPtr->general_type);
+            break;
 
-        /* Send to the proper port number with the IP address
-           specified as Multicast IP Address to THIS -->> 224.0.1.76 */
-        memset((char *) &dest_addr, 0, sizeof(dest_addr));
-        dest_addr.sin_family = AF_INET;
-        dest_addr.sin_port = htons(2313);
-        dest_addr.sin_addr.s_addr= inet_addr("224.0.1.76");
+        case ANNOUNCE_RESPONSE:
+            printf("General Type: Announce Response (%u)\n", IAPPPtr->general_type);
 
-        printf("Reading datagram message...OK.\n");
-        //printf("Got Data Packet from %s\n", inet_ntoa(dest_addr));
-        printf("\nThe message from multicast server is: \n");
-        hexdump(databuf, readoutlen); // This is to print out the Data Package
-        printf("\n\n");
+            break;
+        case HANDOVER_REQUEST:
+            printf("General Type: Handover Request  (%u)\n", IAPPPtr->general_type);
 
+            break;
+        case HANDOVER_RESPONSE:
+            printf("General Type: Handover Response  (%u)\n", IAPPPtr->general_type);
 
-        // 1. Define and Initialize the IAPP Pointer to the 'original Buffer'
-        struct IAPP *IAPPPtr = (struct IAPP*)databuf;
+            break;
+        default:
+            printf("Unknown Data Packet!\n");
 
-        // 2.(a) Define another databuffer (*bytep) shifted by two
-        unsigned char *bytep = databuf+2; /* skip version + type field sven */
-        // 2.(b) Define and Initialize the tlv Pointer to the 'modified Buffer'
-        struct TLV *p =(struct TLV *)bytep;
+    }
+    printf("\n");
+    printf("Protocol Data Units: \n\n");
 
+    /*Loop through the buffer -beginning from the third Index of buffer-*/
+    for(int i=0; (i< datalen) && (p->length != 0) ;)
+    {
+        p = (struct TLV *)bytep; /* sven */
+        /*      Shifting the address for p to next PD Member    */
+        bytep += 3 + p->length;
 
+        /*      Print the Members of struct     */
+        /*      1.Check for every standard Type
+         *      2.Print its name
+         *      3.Send the specified data frame */
 
-        /*      Check for General Version and Type of Packet    */
-        printf("General Version: (%u)\n", IAPPPtr->general_version);
-
-        switch(IAPPPtr->general_type)
+        switch(p->type)
         {
-            case ANNOUNCE_REQUEST:
-                printf("General Type: Announce Request (%u)\n", IAPPPtr->general_type);
+            case TYPE_NETWORK_NAME:
+                if(p->length == 0)
+                {
+                    printf("-- End of Data Packet --\n");
+                    break;
+                }
+                printf("- Network Name : (%u) \n", p->type);
+                printf("- Length is : %u \n", p->length);
+                printf("- Value : %.*s - ", p->length, p->value);
+                printhexvalue(p->value, p->length);
+                printf("\n");
                 break;
 
-            case ANNOUNCE_RESPONSE:
-                printf("General Type: Announce Response (%u)\n", IAPPPtr->general_type);
-
+            case TYPE_BSSID:
+                printf("- BSSID : (%u) \n", p->type);
+                printf("- Length is : %u \n", p->length);
+                printf("- Value : ");
+                printhexvalue(p->value, p->length);
+                printf("\n");
                 break;
-            case HANDOVER_REQUEST:
-                printf("General Type: Handover Request  (%u)\n", IAPPPtr->general_type);
 
+            case TYPE_OLD_BSSID:
+                printf("- Old BSSID : (%u) \n", p->type);
+                printf("- Length is : %u \n", p->length);
+                printf("- Value : ");
+                printhexvalue(p->value, p->length);
+                printf("\n");
                 break;
-            case HANDOVER_RESPONSE:
-                printf("General Type: Handover Response  (%u)\n", IAPPPtr->general_type);
 
+            case TYPE_MOBILE_STATION_ADDRESS:
+                printf("- Mobile Station Address : (%u) \n", p->type);
+                printf("- Length is : %u \n", p->length);
+                printf("- Value : ");
+                printhexvalue(p->value, p->length);
+                printf("\n");
                 break;
+
+            case TYPE_MESSAGE_ID:
+                printf("- Message ID : (%u) \n", p->type);
+                printf("- Length is : %u \n", p->length);
+                printf("- Value : ");
+                printhexvalue(p->value, p->length);
+                printf("\n");
+                break;
+
+            case TYPE_CAPABILITIES:
+                printf("- Capabilities : (%u) \n", p->type);
+                printf("- Length is : %u \n", p->length);
+                printf("- Value : ");
+                printhexvalue(p->value, p->length);
+                printf("\n");
+                break;
+
+            case TYPE_ANNOUNCE_INTERVAL:
+                printf("- Announce Interval : (%u) \n", p->type);
+                printf("- Length is : %u \n", p->length);
+                printf("- Value : (%u) seconds - ", ntohs(*(uint16_t *)(p->value)));
+                printhexvalue(p->value, p->length);
+                printf("\n");
+                break;
+
+            case TYPE_HANDOVER_TIMEOUT:
+                printf("- Handover Timeout : (%u) \n", p->type);
+                printf("- Length is : %u \n", p->length);
+                printf("- Value : (%u) Kus - ", ntohs(*(uint16_t *)(p->value)));
+                printhexvalue(p->value, p->length);
+                printf("\n");
+                break;
+
+            case TYPE_PHY_TYPE:
+                printf("- Phy Type : (%u) \n", p->type);
+                printf("- Length is : %u \n", p->length);
+                printf("- Value : ");
+                printhexvalue(p->value, p->length);
+                printf("\n");
+                break;
+
+            case TYPE_REGULATORY_DOMAIN:
+                printf("- Regulatory Domain : (%u) \n", p->type);
+                printf("- Length is : %u \n", p->length);
+                printf("- Value : ");
+                printhexvalue(p->value, p->length);
+                printf("\n");
+                break;
+
+            case TYPE_RADIO_CHANNEL:
+                printf("- Radio Channel : (%u) \n", p->type);
+                printf("- Length is : %u \n", p->length);
+                printf("- Value : ");
+                printhexvalue(p->value, p->length);
+                printf("\n");
+                break;
+
+            case TYPE_BEACON_INTERVAL:
+                printf("- Beacon Interval : (%u) \n", p->type);
+                printf("- Length is : %u \n", p->length);
+                printf("- Value : (%u) Kus - ", ntohs(*(uint16_t *)(p->value)));
+                printhexvalue(p->value, p->length);
+                printf("\n");
+                break;
+
+            case TYPE_OUI_IDENTIFIER:
+                printf("- OUI Identifier : (%u) \n", p->type);
+                printf("- Length is : %u \n", p->length);
+                printf("- Value : ");
+                printhexvalue(p->value, p->length);
+                printf("\n");
+                break;
+
             default:
-                printf("Unknown Data Packet!\n");
-
+                printf("Unknown PDU Type : (%u)\n", p->type);
         }
+        /*      Shifting the address for i      */
+        i += sizeof(TLV) + (p->length); //next beginning
         printf("\n");
-        /*      IDEA    */
-        /*      skip the first two bytes from the databuf   */
-
-
-        /*         Let's See the databuf_modified       */
-        printf("Protocol Data Units: \n");
-        printf("\n");
-
-        /*Loop through the buffer -beginning from the third Index of buffer-*/
-        //unsigned char *bytep = databuf+2; /* skip version + type field sven |MOVED UP| */
-        //hexdump(bytep, datalen);
-        //printf("\n");
-
-        //alloc_IAPP_msg();
-
-
-        uint8_t dataframeslength=0;
-        uint8_t no_of_elements = 0;
-
-        for(int i=0; (i< datalen) && (p->length != 0) ;)
-        {
-            p = (struct TLV *)bytep; /* sven */
-            /*      Shifting the address for p to next PD Member    */
-            bytep += 3 + p->length;
-
-            /*      Print the Members of struct     */
-            /*      1.Check for every standard Type
-             *      2.Print its name
-             *      3.Send the specified data frame */
-
-            switch(p->type)
-            {
-                case TYPE_NETWORK_NAME:
-                    if(p->length == 0)
-                    {
-                        printf("-- End of Data Packet --\n");
-                        break;
-                    }
-                    printf("- Network Name : (%u) \n", p->type);
-                    printf("- Length is : %u \n", p->length);
-                    printf("- Value : %.*s - ", p->length, p->value);
-                    printhexvalue(p->value, p->length);
-                    printf("\n");
-                    dataframeslength += p->length;
-                    no_of_elements +=3;
-                    break;
-
-                case TYPE_BSSID:
-                    printf("- BSSID : (%u) \n", p->type);
-                    printf("- Length is : %u \n", p->length);
-                    printf("- Value : ");
-                    printhexvalue(p->value, p->length);
-                    printf("\n");
-                    dataframeslength += p->length;
-                    no_of_elements +=3;
-                    break;
-
-                case TYPE_OLD_BSSID:
-                    printf("- Old BSSID : (%u) \n", p->type);
-                    printf("- Length is : %u \n", p->length);
-                    printf("- Value : ");
-                    printhexvalue(p->value, p->length);
-                    printf("\n");
-                    dataframeslength += p->length;
-                    no_of_elements +=3;
-                    break;
-
-                case TYPE_MOBILE_STATION_ADDRESS:
-                    printf("- Mobile Station Address : (%u) \n", p->type);
-                    printf("- Length is : %u \n", p->length);
-                    printf("- Value : ");
-                    printhexvalue(p->value, p->length);
-                    printf("\n");
-                    dataframeslength += p->length;
-                    no_of_elements +=3;
-                    break;
-
-                case TYPE_MESSAGE_ID:
-                    printf("- Message ID : (%u) \n", p->type);
-                    printf("- Length is : %u \n", p->length);
-                    printf("- Value : ");
-                    printhexvalue(p->value, p->length);
-                    printf("\n");
-                    dataframeslength += p->length;
-                    no_of_elements +=3;
-                    break;
-
-                case TYPE_CAPABILITIES:
-                    printf("- Capabilities : (%u) \n", p->type);
-                    printf("- Length is : %u \n", p->length);
-                    printf("- Value : ");
-                    printhexvalue(p->value, p->length);
-                    printf("\n");
-                    dataframeslength += p->length;
-                    no_of_elements +=3;
-                    break;
-
-                case TYPE_ANNOUNCE_INTERVAL:
-                    printf("- Announce Interval : (%u) \n", p->type);
-                    printf("- Length is : %u \n", p->length);
-                    printf("- Value : (%u) seconds - ", ntohs(*(uint16_t *)(p->value)));
-                    printhexvalue(p->value, p->length);
-                    printf("\n");
-                    dataframeslength += p->length;
-                    no_of_elements +=3;
-                    break;
-
-                case TYPE_HANDOVER_TIMEOUT:
-                    printf("- Handover Timeout : (%u) \n", p->type);
-                    printf("- Length is : %u \n", p->length);
-                    printf("- Value : (%u) Kus - ", ntohs(*(uint16_t *)(p->value)));
-                    printhexvalue(p->value, p->length);
-                    printf("\n");
-                    dataframeslength += p->length;
-                    no_of_elements +=3;
-                    break;
-
-                case TYPE_PHY_TYPE:
-                    printf("- Phy Type : (%u) \n", p->type);
-                    printf("- Length is : %u \n", p->length);
-                    printf("- Value : ");
-                    printhexvalue(p->value, p->length);
-                    printf("\n");
-                    dataframeslength += p->length;
-                    no_of_elements +=3;
-                    break;
-
-                case TYPE_REGULATORY_DOMAIN:
-                    printf("- Regulatory Domain : (%u) \n", p->type);
-                    printf("- Length is : %u \n", p->length);
-                    printf("- Value : ");
-                    printhexvalue(p->value, p->length);
-                    printf("\n");
-                    dataframeslength += p->length;
-                    no_of_elements +=3;
-                    break;
-
-                case TYPE_RADIO_CHANNEL:
-                    printf("- Radio Channel : (%u) \n", p->type);
-                    printf("- Length is : %u \n", p->length);
-                    printf("- Value : ");
-                    printhexvalue(p->value, p->length);
-                    printf("\n");
-                    dataframeslength += p->length;
-                    no_of_elements +=3;
-                    break;
-
-                case TYPE_BEACON_INTERVAL:
-                    printf("- Beacon Interval : (%u) \n", p->type);
-                    printf("- Length is : %u \n", p->length);
-                    printf("- Value : (%u) Kus - ", ntohs(*(uint16_t *)(p->value)));
-                    printhexvalue(p->value, p->length);
-                    printf("\n");
-                    dataframeslength += p->length;
-                    no_of_elements +=3;
-                    break;
-
-                case TYPE_OUI_IDENTIFIER:
-                    printf("- OUI Identifier : (%u) \n", p->type);
-                    printf("- Length is : %u \n", p->length);
-                    printf("- Value : ");
-                    printhexvalue(p->value, p->length);
-                    printf("\n");
-                    dataframeslength += p->length;
-                    no_of_elements +=3;
-                    break;
-
-                default:
-                    printf("Unknown PDU Type : (%u)\n", p->type);
-                    dataframeslength += p->length;
-                    no_of_elements +=3;
-            }
-            /*      Shifting the address for i      */
-            i += sizeof(TLV) + (p->length); //next beginning
-
-            printf("\n");
-        }
-        /* Comments */
-        /* Manipulate the databuffer to get it sending exactly what you want */
-        /* Now I have the total length of values [in bytes],
-           /  but how many [bytes are in the whole Packet]*/
-
-        //      uint8_t packetlength = dataframeslength + no_of_elements +2;
-
-        /* allocate buffer->add bytes in buffer->
-         * remember the buffer name?->got the new buffer length?->
-         * ---pass it to sendto()--- */
-
-        //p = alloc_IAPP_msg();
-        //add_IAPP_network_name(p, "Test1");
-        //add_IAPP_radio_channel(p, 6);
-        
-       // unsigned char* bufptr , *next = NULL;
-       // bufptr = alloc_IAPP_msg(256, sizeof(char));
-       // /* Fill the IAPP Structure */
-       // next = add_IAPP_Version(bufptr, "\x01");
-       // next = add_IAPP_Type(next, "\x02");
-       //
-       // /* Fill the PDU Structure */
-       // char ssid[33]="LancomTest101";
-       // next = add_IAPP_SSID(next, ssid); // length 1-33
-       // uint8_t bssid[6]={0x12,0x23,0x34,0x45,0x56,0x67};
-       // next = add_IAPP_BSSID(next, bssid); // length always 6
-       // next = add_IAPP_Old_BSSID(next, "\x00\x00\x00\x00\x00\x00"); // length always 6
-       // next = add_IAPP_Mobile_Station_Address(next, "Mobile Station"); // length always 6
-       // next = add_IAPP_Capabilities(next, "\x20"); // length always 1
-       // next = add_IAPP_Announce_Interval(next, "\x09\x1e"); // length always 2
-       // next = add_IAPP_Handover_Timeout(next, "\x00\x00"); // length always 2
-       // next = add_IAPP_Message_ID(next, "WikiWiki"); // length always 2
-       // next = add_IAPP_Phy_Type(next, "\x07"); // length always 1
-       // next = add_IAPP_Regulatory_Domain(next, "\x00"); // length always 1
-       // next = add_IAPP_Radio_Channel(next, "\x06"); // length always 1
-       // next = add_IAPP_Beacon_Interval(next, "\x00\x64"); // length always 2
-       // next = add_IAPP_OUI_Identifer(next, "\x00\x10\x56\x57"); // length always 3
-       // next = add_Terminator(next); // Terminator to determine the End Of Buffer
-
-       // int buf_modified_length = 0;
-       // for(unsigned i=0; i< 256; i++){
-       //     if(bufptr[i]!='\x3f'){
-       //         ++buf_modified_length;
-       //     } else {
-       //         break;
-       //     }
-       // }
-
-       //// for(unsigned i=0; i< 256; i++){
-       ////     if(bufptr[i]=='\0' && bufptr[i+1]=='\0' && bufptr[i+2]=='\0' && bufptr[i+8]=='\0' ){
-       ////         break;
-       ////     } else {
-       ////         ++buf_modified_length;
-       ////     }
-       //// }
-       // printf("New Buffer Length: %i\n",buf_modified_length);
-       // hexdump(bufptr, buf_modified_length);
-       //  
-       //// /*  Send whole data buffer to the Server (Source 'AP') with MULTICAST IP 224.0.1.76  */
-       //// if(sendto(sd, bufptr, buf_modified_length+1, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr))< 0)
-
-       //// {
-       ////     perror("Sending Error");
-       ////     close(sd);
-       ////     exit(1);
-       //// }
-       //// else
-       //// {
-       ////     printf("The Transmitted Data is: \n");
-       ////     hexdump(bufptr, buf_modified_length+1);
-       ////     printf("\n");
-       //// }
-
-       // free(bufptr); 
     }
 
     return 0;
