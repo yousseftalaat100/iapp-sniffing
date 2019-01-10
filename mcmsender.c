@@ -1,3 +1,4 @@
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -302,6 +303,9 @@ unsigned char databuf[BUFFER_SIZE];
 
 int main(int argc, char *argv[]){
 
+    int activity;
+    fd_set writefds;
+    struct timeval tv;
 
     /*Create a datagram socket on which to receive*/
     sd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -311,6 +315,9 @@ int main(int argc, char *argv[]){
         exit(1);
     }
     printf("Opening datagram socket...OK.\n");
+
+    // Clear the set ahead of time
+    FD_ZERO(&writefds);
 
     /* Enable SO_REUSEADDR to allow multiple instancesof this
        application to receive copies of the multicase datagrams */
@@ -354,79 +361,94 @@ int main(int argc, char *argv[]){
         exit(1);
     }
     printf("Adding multicast group...OK.\n");
+
+    /* Preparation for select() */
+        tv.tv_sec = 3;
+        tv.tv_usec = 500000;
+        // Add the file descriptor to the set
+        FD_SET(sd, &writefds);
+        activity = select(sd+1, NULL, &writefds, NULL, &tv);
     
-        /* Send to the proper port number with the IP address
-           specified as Multicast IP Address to THIS -->> 224.0.1.76 */
-        memset((char *) &dest_addr, 0, sizeof(dest_addr));
-        dest_addr.sin_family = AF_INET;
-        dest_addr.sin_port = htons(2313);
-        dest_addr.sin_addr.s_addr= inet_addr("224.0.1.76");
-        
-        /* Add the Data */        
-        unsigned char* bufptr = NULL; // bufptr: at the end of buffer (adding)
-        unsigned char* bufptr2 = NULL; // bufptr2: at the beginning of buffer (printing)
-        bufptr = alloc_IAPP_msg(256, sizeof(char));
-        bufptr2 = bufptr;
-
-        /* Fill the IAPP Structure */
-      //  fprintf(stderr, "TEST1: %p\n", bufptr);
-        add_IAPP_Version(&bufptr, "\x01");
-      //  fprintf(stderr, "TEST3: %p\n", bufptr);
-        add_IAPP_Type(&bufptr, "\x00");
-      //  fprintf(stderr, "TEST4: %p\n", bufptr);
-       
-        /* Fill the PDU Structure */
-        unsigned char ssid[33]="SSID Lancom-101 ";
-        add_IAPP_SSID(&bufptr, ssid); // length 2-33
-      //  fprintf(stderr, "TEST5: %p\n", bufptr);
-        uint8_t bssid[6]={0x12,0x23,0x34,0x45,0x56,0x67};
-        add_IAPP_BSSID(&bufptr, bssid); // length always 6
-      //  hexdump(bufptr2, 32);
-      //  fprintf(stderr, "TEST6: %p\n", bufptr);
-        add_IAPP_Old_BSSID(&bufptr, "\x00\x00\x00\x00\x00\x00"); // length always 6
-        add_IAPP_Mobile_Station_Address(&bufptr, "Mobile"); // length always 6
-        add_IAPP_Capabilities(&bufptr, "\x20"); // length always 1
-        add_IAPP_Announce_Interval(&bufptr, "\x00\x78"); // length always 2
-        add_IAPP_Handover_Timeout(&bufptr, "\x03\xe8"); // length always 2
-        add_IAPP_Message_ID(&bufptr, "\x00\x50"); // length always 2
-        add_IAPP_Phy_Type(&bufptr, "\x07"); // length always 1
-        add_IAPP_Regulatory_Domain(&bufptr, "\x00"); // length always 1
-        add_IAPP_Radio_Channel(&bufptr, "\x06"); // length always 1
-        add_IAPP_Beacon_Interval(&bufptr, "\x00\x64"); // length always 2
-        add_IAPP_OUI_Identifer(&bufptr, "\x10\x56\x57"); // length always 3
-        add_Terminator(&bufptr); // Terminator to determine the End Of Buffer
-
-        /* calculate the length of buffer */
-        int buf_modified_length = 0;
-        for(unsigned i=0; i< 256; i++){
-            if(bufptr2[i]!='\x22'){
-                ++buf_modified_length;
-            } else {
-                break;
-            }
-        }
-
-        /* Send through the socket */
-        printf("Sending datagram message...OK.\n");
-        printf("\nThe message to multicast server is: \n");
-        printf("New Buffer Length: %i\n",buf_modified_length);
-        /*  Send whole data buffer to the Server (Source 'AP') with MULTICAST IP 224.0.1.76  */
-        if(sendto(sd, bufptr2, buf_modified_length, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr))< 0)
+        if(activity<0)
         {
-            perror("Sending Error");
-            close(sd);
-            exit(1);
+            perror("select error");
+        }
+        else if(activity == 0)
+        {
+            printf("Timeout! No data in 3,5 Seconds..");
         }
         else
         {
-            printf("The Transmitted Data is: \n");
-            hexdump(bufptr2, buf_modified_length);
+        
+            /* Send to the proper port number with the IP address
+               specified as Multicast IP Address to THIS -->> 224.0.1.76 */
+            memset((char *) &dest_addr, 0, sizeof(dest_addr));
+            dest_addr.sin_family = AF_INET;
+            dest_addr.sin_port = htons(2313);
+            dest_addr.sin_addr.s_addr= inet_addr("224.0.1.76");
+         for(int i=0; i<2; i++)
+         {
+         
+            /* Add the Data */        
+            unsigned char* bufptr = NULL; // bufptr: at the end of buffer (adding)
+            unsigned char* bufptr2 = NULL; // bufptr2: at the beginning of buffer (printing)
+            bufptr = alloc_IAPP_msg(256, sizeof(char));
+            bufptr2 = bufptr;
+
+            /* Fill the IAPP Structure */
+            add_IAPP_Version(&bufptr, "\x01");
+            add_IAPP_Type(&bufptr, "\x01");
+           
+            /* Fill the PDU Structure */
+            unsigned char ssid[33]="SSID Lancom-101";
+            add_IAPP_SSID(&bufptr, ssid); // length 2-33
+            uint8_t bssid[6]={0x12,0x23,0x34,0x45,0x56,0x67};
+            add_IAPP_BSSID(&bufptr, bssid); // length always 6
+            add_IAPP_Old_BSSID(&bufptr, "\x00\x00\x00\x00\x00\x00"); // length always 6
+            add_IAPP_Mobile_Station_Address(&bufptr, "Mobile"); // length always 6
+            add_IAPP_Capabilities(&bufptr, "\x20"); // length always 1
+            add_IAPP_Announce_Interval(&bufptr, "\x00\x78"); // length always 2
+            add_IAPP_Handover_Timeout(&bufptr, "\x03\xe8"); // length always 2
+            add_IAPP_Message_ID(&bufptr, "\x00\x50"); // length always 2
+            add_IAPP_Phy_Type(&bufptr, "\x07"); // length always 1
+            add_IAPP_Regulatory_Domain(&bufptr, "\x00"); // length always 1
+            add_IAPP_Radio_Channel(&bufptr, "\x06"); // length always 1
+            add_IAPP_Beacon_Interval(&bufptr, "\x00\x64"); // length always 2
+            add_IAPP_OUI_Identifer(&bufptr, "\x10\x56\x57"); // length always 3
+            add_Terminator(&bufptr); // Terminator to determine the End Of Buffer
+
+            /* calculate the length of buffer */
+            int buf_modified_length = 0;
+            for(unsigned i=0; i< 256; i++){
+                if(bufptr2[i]!='\x22'){
+                    ++buf_modified_length;
+                } else {
+                    break;
+                }
+            }
+
+            /* Send through the socket */
+            printf("Sending datagram message...OK.\n");
+            printf("\nThe message to multicast server is: \n");
+            printf("New Buffer Length: %i\n",buf_modified_length);
+            /*  Send whole data buffer to the Server (Source 'AP') with MULTICAST IP 224.0.1.76  */
+            if(sendto(sd, bufptr2, buf_modified_length, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr))< 0)
+            {
+                perror("Sending Error");
+                close(sd);
+                exit(1);
+            }
+            else
+            {
+                printf("The Transmitted Data is: \n");
+                hexdump(bufptr2, buf_modified_length);
+                printf("\n");
+            }
             printf("\n");
+            free(bufptr2); 
+
+         }
+            
         }
-        printf("\n");
-        free(bufptr2); 
-
-
-
     return 0;
 }

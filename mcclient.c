@@ -6,11 +6,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <sys/time.h>
 #include <netinet/if_ether.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <ctype.h>
-#include <iostream>
 
 #define GENERAL_VERSION 1
 
