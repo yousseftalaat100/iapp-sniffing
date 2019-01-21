@@ -1,3 +1,10 @@
+/*
+ *  This code is used for sending data packets to the AP
+ *
+ *  WITHOUT the use of select() function for writing
+ *
+ * */
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -86,7 +93,7 @@ unsigned char* alloc_IAPP_msg(int nmemb, uint8_t size)
 
 void add_IAPP_Version(unsigned char** p, const char* val)
 {
-    fprintf(stderr, "TEST: %p\n", *p);
+    //fprintf(stderr, "TEST: %p\n", *p);
     *p = (unsigned char*)memcpy(*p, val, 1) + 1;
 }
 
@@ -132,14 +139,14 @@ void add_IAPP_Old_BSSID(unsigned char** p, const char* val)
     *p = (unsigned char*)memcpy(*p, val, length) + length;
 }
 
-void add_IAPP_Mobile_Station_Address(unsigned char** p, const char* val)
+void add_IAPP_Mobile_Station_Address(unsigned char** p, unsigned char* val)
 {
     (*p)[0] = TYPE_MOBILE_STATION_ADDRESS;
     (*p)[1] = 0; // Type Option
     uint8_t length = 6;
     (*p)[2] = length;
     (*p)+=3;
-    *p = (unsigned char*)memcpy(*p, val, length) + length;
+    *p = (unsigned char*)memcpy(*p, (const char*)val, length) + length;
 }
 
 void add_IAPP_Capabilities(unsigned char** p, const char* val)
@@ -293,6 +300,29 @@ void hexdump(void *ptr, int buflen)
     }
 }
 
+static char *rand_string(char *str, size_t size)
+{
+    const char charset[] = "abcdef0123456789";
+    if (size) {
+        --size;
+        for (size_t n = 0; n < size; n++) {
+            int key = rand() % (int) (sizeof charset - 1);
+            str[n] = charset[key];
+        }
+        str[size] = '\0';
+    }
+    return str;
+}
+
+char* rand_string_alloc(size_t size)
+{
+     char *s = (char*)malloc(size + 1);
+     if (s) {
+         rand_string(s, size);
+     }
+     return s;
+}
+
 struct sockaddr_in localSock;
 struct sockaddr_in dest_addr;
 struct ip_mreq group;
@@ -303,6 +333,8 @@ unsigned char databuf[BUFFER_SIZE];
 int main(int argc, char *argv[]){
 
 
+while(1)
+{
     /*Create a datagram socket on which to receive*/
     sd = socket(AF_INET, SOCK_DGRAM, 0);
     if(sd < 0)
@@ -354,7 +386,10 @@ int main(int argc, char *argv[]){
         exit(1);
     }
     printf("Adding multicast group...OK.\n");
-    
+   
+
+    for(int i=0; i<10;i++)
+    {
         /* Send to the proper port number with the IP address
            specified as Multicast IP Address to THIS -->> 224.0.1.76 */
         memset((char *) &dest_addr, 0, sizeof(dest_addr));
@@ -369,22 +404,37 @@ int main(int argc, char *argv[]){
         bufptr2 = bufptr;
 
         /* Fill the IAPP Structure */
-      //  fprintf(stderr, "TEST1: %p\n", bufptr);
         add_IAPP_Version(&bufptr, "\x01");
-      //  fprintf(stderr, "TEST3: %p\n", bufptr);
-        add_IAPP_Type(&bufptr, "\x00");
-      //  fprintf(stderr, "TEST4: %p\n", bufptr);
+        add_IAPP_Type(&bufptr, "\x01");
        
         /* Fill the PDU Structure */
-        unsigned char ssid[33]="SSID Lancom-101 ";
+        //uint8_t random_num = (rand() % (126 - 23 + 1 )) + 23;
+        //char* random_string = rand_string_alloc(8);
+        
+        unsigned char ssid[33];
+        snprintf((char*)ssid, sizeof(ssid), "RANDOMSSID-%d", 0 + rand() % 99 );
+        //add_IAPP_SSID(&bufptr, (unsigned char*)random_string); // length 2-33
         add_IAPP_SSID(&bufptr, ssid); // length 2-33
-      //  fprintf(stderr, "TEST5: %p\n", bufptr);
-        uint8_t bssid[6]={0x12,0x23,0x34,0x45,0x56,0x67};
+        
+        //printf("The random number for bssid is: %02x\n", random_num);
+        //printf("The random String for ssid is: %s\n", random_string);
+        //uint8_t bssid[6]={random_num, 0x23, 0x34, 0x45, 0x56, random_num};
+        uint8_t bssid[6];
+        for(int j=0; j<6; j++)
+        {
+            bssid[j] = rand() % 255;
+            if(bssid[j] == '\x22')
+                bssid[j]++;
+        }
+        //snprintf((char*)bssid, sizeof(bssid), "%.*x", 6, rand() % (255));
         add_IAPP_BSSID(&bufptr, bssid); // length always 6
-      //  hexdump(bufptr2, 32);
-      //  fprintf(stderr, "TEST6: %p\n", bufptr);
+        
         add_IAPP_Old_BSSID(&bufptr, "\x00\x00\x00\x00\x00\x00"); // length always 6
-        add_IAPP_Mobile_Station_Address(&bufptr, "Mobile"); // length always 6
+        
+        unsigned char mobile_address[6];
+        snprintf((char*)mobile_address, sizeof(mobile_address), "Mob%c%u", 65+ (rand() % (90-66)), rand() % (99) );
+        add_IAPP_Mobile_Station_Address(&bufptr, mobile_address); // length always 6
+
         add_IAPP_Capabilities(&bufptr, "\x20"); // length always 1
         add_IAPP_Announce_Interval(&bufptr, "\x00\x78"); // length always 2
         add_IAPP_Handover_Timeout(&bufptr, "\x03\xe8"); // length always 2
@@ -425,8 +475,10 @@ int main(int argc, char *argv[]){
         }
         printf("\n");
         free(bufptr2); 
-
-
-
+    
+    }
+    sleep(30);
+    close(sd);
+}
     return 0;
 }

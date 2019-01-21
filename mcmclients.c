@@ -42,10 +42,7 @@ struct TLV
     uint8_t type;
     uint8_t type_option=0x00;
     uint8_t length;
-    unsigned char value[0]; /* keeps it of sizeof() = 0 */ /*       the same as ==>>
-                                                                    unsigned char *value;
-                                                                    but the sizeof(pointer) has a value
-                                                                    not equal zero  */
+    unsigned char value[0]; 
 }__attribute__((packed));
 
 struct PDU
@@ -307,7 +304,7 @@ int main(int argc, char *argv[]){
     struct timeval tv;
     /* Set of socket descriptors */
     fd_set readfds;
-    fd_set writefds;
+    //fd_set writefds;
 
     /* Create a datagram socket on which to receive */
     sd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -321,7 +318,7 @@ int main(int argc, char *argv[]){
 
     // clear the set ahead of time
     FD_ZERO(&readfds);
-    FD_ZERO(&writefds);
+    //FD_ZERO(&writefds);
 
     /* Enable SO_REUSEADDR to allow multiple instancesof this
        application to receive copies of the multicase datagrams */
@@ -378,7 +375,7 @@ int main(int argc, char *argv[]){
     tv.tv_usec = 500000;
     // add file descriptor to the set
     FD_SET(sd, &readfds);
-    FD_SET(sd, &writefds);
+    //FD_SET(sd, &writefds);
     activity = select(sd+1, &readfds, NULL, NULL, &tv);
     
     if((activity < 0))
