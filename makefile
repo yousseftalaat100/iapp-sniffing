@@ -1,12 +1,12 @@
 all:	mcmclients.c mcclientsender.c
-	g++ -g mcmclients.c -Wall -O2 -o mcmclients
-	g++ -g mcclientsender.c -Wall -O2 -o mcclientsender
+	g++ -g mcmclients.c -Wall -O1 -o mcmclients
+	g++ -g mcclientsender.c -Wall -O1 -o mcclientsender
 
 sniffer:	mcmclients.c
-	g++ -g mcmclients.c -Wall -O2 -o mcmclients && ./mcmclients
+	g++ -g mcmclients.c -Wall -O1 -o mcmclients && ./mcmclients
 
 sender:	mcclientsender.c
-	g++ -g mcclientsender.c -Wall -O2 -o mcclientsender && ./mcclientsender
+	g++ -g mcclientsender.c -Wall -O1 -o mcclientsender && ./mcclientsender $(args) 
 
 clean:
 	rm mcmclients mcclientsender

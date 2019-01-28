@@ -41,7 +41,10 @@
 #define TYPE_RADIO_CHANNEL 18
 #define TYPE_BEACON_INTERVAL 19
 #define TYPE_OUI_IDENTIFIER 128
-
+#define TYPE_NEIGHBOR_INFO 0x85
+#define TYPE_LOADINFO 0x86
+#define TYPE_SEEN_STATIONS 0x87
+#define TYPE_SEEN_NEIGHBORS 0x88
 #define BUFFER_SIZE 256
 
 struct TLV
@@ -69,6 +72,11 @@ struct PDU
     unsigned char *Radio_Channel;
     unsigned char *Beacon_Interval;
     unsigned char *OUI_Identifier;
+
+    unsigned char *Neighbor_Info;
+    unsigned char *Load_Info;
+    unsigned char *Seen_Stations;
+    unsigned char *Seen_Neighbors;
 
     struct TLV *tlv;
 
@@ -298,28 +306,28 @@ void hexdump(void *ptr, int buflen)
     }
 }
 
-static char *rand_string(char *str, size_t size)
-{
-    const char charset[] = "abcdef0123456789";
-    if (size) {
-        --size;
-        for (size_t n = 0; n < size; n++) {
-            int key = rand() % (int) (sizeof charset - 1);
-            str[n] = charset[key];
-        }
-        str[size] = '\0';
-    }
-    return str;
-}
-
-char* rand_string_alloc(size_t size)
-{
-     char *s = (char*)malloc(size + 1);
-     if (s) {
-         rand_string(s, size);
-     }
-     return s;
-}
+//static char *rand_string(char *str, size_t size)
+//{
+//    const char charset[] = "abcdef0123456789";
+//    if (size) {
+//        --size;
+//        for (size_t n = 0; n < size; n++) {
+//            int key = rand() % (int) (sizeof charset - 1);
+//            str[n] = charset[key];
+//        }
+//        str[size] = '\0';
+//    }
+//    return str;
+//}
+//
+//char* rand_string_alloc(size_t size)
+//{
+//     char *s = (char*)malloc(size + 1);
+//     if (s) {
+//         rand_string(s, size);
+//     }
+//     return s;
+//}
 
 struct sockaddr_in localSock;
 struct sockaddr_in dest_addr;
@@ -382,66 +390,79 @@ int main(int argc, char *argv[]){
     }
     printf("Adding multicast group...OK.\n");
    
-    /* create random variable for SSID & BSSID and Mobile_Address */
-    unsigned char ssid[33]={};
-    uint8_t bssid[6]={};
-    unsigned char mobile_address[6]={};
+    /* Send to the proper port number with the IP address
+       specified as Multicast IP Address to THIS -->> 224.0.1.76 */
+    memset((char *) &dest_addr, 0, sizeof(dest_addr));
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_port = htons(2313);
+    dest_addr.sin_addr.s_addr= inet_addr("224.0.1.76");
     
-    int max_traffic = 2;
-    int size_array = 100;
-    unsigned char ssidholder[33][size_array];
-    uint8_t bssidholder[6][size_array];
-    unsigned char mobile_addressholder[6][size_array];
+    /* create random variable for SSID & BSSID and Mobile_Address */
+    
+    printf("argv[1]: %s\n", argv[1]);
+    
+    int max_traffic = atoi(argv[1]);
+    int size_array = 200;
+
+    unsigned char ssidholder[size_array][33];
+    uint8_t bssidholder[size_array][6];
+    unsigned char mobile_addressholder[size_array][6];
+
 /* 1. generate the random array in a loop of 100 elements
  * 2. store the array in a 2D array of 100 elemets
  * 3. extract the 1D arrays from the 2D array
  * 4. add those 1D arrays to the buffer
  * 5. send the buffer
+ * 6. (sleep for 500 ms && count the number of sent buffers)
+ * 7. (send the next buffer)
+ * 8. (sleep for 500 ms && count the number of sent buffers)
+ * 9. check if number of sent buffers EQUALS to max_traffic 
+ * 10 if NO; continue .. if YES; sleep for 30 seconds then from START
  * */
 
     /* 1. Generate and 2. Store arrays */
     for(int i=0; i<size_array; i++)
     {
-        // 1.1 generate a random ssid
-        snprintf((char*)ssid, sizeof(ssid), "RANDOMSSID-%d", 0 + rand() % 99 );
-        // 1.2 generate a random bssid
-        for(int j=0; j<6; j++)
-        {
-            bssid[j] = rand() % 255;
-            if(bssid[j] == '\x22')
-                bssid[j]++;
-        }
-        // 1.3 generate a random mobile station
-        snprintf((char*)mobile_address, sizeof(mobile_address), "Mob%c%u", 65+ (rand() % (90-66)), rand() % (99));
     
-        // 2. store the array in a 2D array of 100 elements
-        // 2.1 store 'ssid' in 'ssidholder' 
-        snprintf((char*)ssidholder[i], sizeof(ssid), "RANDOMSSID-%d", 0 + rand() % 99 );
-        //memcpy(ssidholder[i], ssid, sizeof(ssid));
-        // 2.2 store 'bssid' in 'bssidholder'
+        // 1. store the array in a 2D array of 100 elements
+        // 1.1 generate and store in 'ssidholder' 
+        snprintf((char*)ssidholder[i], sizeof(ssidholder[i]), "RANDOMSSID-%02d", 0 + rand() % 99 );
+        
+        // 1.2 generate and store in 'bssidholder'
         for(int j=0; j<6; j++)
         {
-            bssidholder[j][i]=bssid[j];
+            bssidholder[i][j] = (rand() % 255);
+            if(bssidholder[i][j] == '\x22')
+                bssidholder[i][j]++;
         }
-        // 2.3 store 'mobile_address' in 'mobile_addressholder'
-        snprintf((char*)mobile_addressholder[i], sizeof(mobile_address), "Mob%c%u", 65+ (rand() % (90-66)), rand() % (99) );
-        
+
+        // 1.3 generate and store in 'mobile_addressholder'
+        sprintf((char*)mobile_addressholder[i], "Mob%c%02u", 65+ (rand() % (90-66)), 0 + (rand() % (99)) );
+    }
+    
+    /* generate a random neigbors' bssid LIST of (say) 20 neighbors */
+    uint8_t neighbors_columns = 10;
+    uint8_t neighbors_rows = 20;
+    uint8_t neighbors_list[neighbors_rows][neighbors_columns];
+    for(int i=0; i<neighbors_rows; i++)
+    {
+        for(int j=; j<neighbors_columns; j++)
+        {
+            neighbors_list[i][j] = (rand() % 255);
+            if(neighbors_list[i][j] == '\x22')
+                neighbors_list[i][j]++;
+        }
     }
 
     /* 3. extract the 1D array from the 2D array */
-        unsigned char ssid2[33]={};
-        uint8_t bssid2[6]={};
-        unsigned char mobile_address2[6]={};
+        unsigned char ssid[33];
+        uint8_t bssid[6];
+        unsigned char mobile_address[6];
 
     printf("max_traffic: %d\nsize_array: %d\n", max_traffic, size_array);
+    uint8_t all_packets_counter = 0;
     for(int i=0; i<max_traffic; i++)
     {
-        /* Send to the proper port number with the IP address
-           specified as Multicast IP Address to THIS -->> 224.0.1.76 */
-        memset((char *) &dest_addr, 0, sizeof(dest_addr));
-        dest_addr.sin_family = AF_INET;
-        dest_addr.sin_port = htons(2313);
-        dest_addr.sin_addr.s_addr= inet_addr("224.0.1.76");
         
         /* Add the Data */        
         unsigned char* bufptr = NULL; // bufptr: at the end of buffer (adding)
@@ -454,30 +475,22 @@ int main(int argc, char *argv[]){
         add_IAPP_Type(&bufptr, "\x01");
        
         /* Fill the PDU Structure */
-        /* 3. Extract and 4. Add to the buffer */
-        // 3.1 extract 'ssid2' from 'ssidholder'
-        memcpy(ssid2, ssidholder[i], sizeof(ssid));
-        // 4.1 add 'ssid2' to the buffer
-        add_IAPP_SSID(&bufptr, ssid2); // length 2-33
+        // extract 'ssid' from 'ssidholder'
+        memcpy(ssid, ssidholder[i], sizeof(ssid));
+        add_IAPP_SSID(&bufptr, ssid); // length 2-33
         
-        // 3.2 extract 'bssid2' from 'bssidholder'
+        // extract 'bssid' from 'bssidholder'
         for(int j=0; j<6; j++)
         {
-            bssid2[j] = bssidholder[j][i];
+            bssid[j] = bssidholder[j][i];
         }
-        // 4.2 add 'bssid2' to the buffer
-        add_IAPP_BSSID(&bufptr, bssid2); // length always 6
-        
-        add_IAPP_Old_BSSID(&bufptr, "\xff\xff\xff\xff\xff\xff"); // length always 6
+        add_IAPP_BSSID(&bufptr, bssid); // length always 6
+
+        add_IAPP_Old_BSSID(&bufptr, "\xff\x00\x11\x11\x00\xff"); // length always 6
        
-        // 3.3 extract 'mobile_address2' from 'mobile_addressholder'
-        memcpy(mobile_address2, mobile_addressholder[i], sizeof(mobile_address2));
-        //for(int k=0; k<6; k++)
-        //{
-        //    mobile_address2[k] = mobile_addressholder[i][k];
-        //}
-        // 4.3 add 'mobile_address2' to the buffer
-        add_IAPP_Mobile_Station_Address(&bufptr, mobile_address2); // length always 6
+        // extract 'mobile_address' from 'mobile_addressholder'
+        memcpy(mobile_address, mobile_addressholder[i], sizeof(mobile_address));
+        add_IAPP_Mobile_Station_Address(&bufptr, mobile_address); // length always 6
 
         add_IAPP_Capabilities(&bufptr, "\x20"); // length always 1
         add_IAPP_Announce_Interval(&bufptr, "\x00\x78"); // length always 2
@@ -503,8 +516,9 @@ int main(int argc, char *argv[]){
         /* 5. send the buffer to the access point */
         /* Send through the socket and print what's been sent */
         printf("Sending datagram message...OK.\n");
-        printf("\nThe message to multicast server is: \n");
+        printf("The message to multicast server is: \n");
         printf("New Buffer Length: %i\n",buf_modified_length);
+
         /*  Send whole data buffer to the Server (Source 'AP') with MULTICAST IP 224.0.1.76  */
         if(sendto(sd, bufptr2, buf_modified_length, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr))< 0)
         {
@@ -514,8 +528,11 @@ int main(int argc, char *argv[]){
         }
         printf("The Transmitted Data is: \n");
         hexdump(bufptr2, buf_modified_length);
-        printf("\n");
-        free(bufptr2); 
+        free(bufptr2);
+        
+        all_packets_counter++;
+        printf("Number of overall sent packets : %u\n\n", all_packets_counter);
+        usleep(100000);
    
         if(i==(max_traffic-1))
         {
