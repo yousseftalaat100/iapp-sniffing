@@ -21,31 +21,35 @@
 #include <ctype.h>
 
 
-#define GENERAL_VERSION 1
+#define GENERAL_VERSION      1
 
-#define ANNOUNCE_REQUEST 0 
-#define ANNOUNCE_RESPONSE 1
-#define HANDOVER_REQUEST 2 
-#define HANDOVER_RESPONSE 3 
+#define ANNOUNCE_REQUEST     0 
+#define ANNOUNCE_RESPONSE    1
+#define HANDOVER_REQUEST     2 
+#define HANDOVER_RESPONSE    3
+#define SEENSTATION_REQUEST  4
+#define SEENSTATION_RESPONSE 5
+#define SEENNEIGHBORS_INFO   6
+#define IAPP_MAXTYPE         6
 
-#define TYPE_NETWORK_NAME 0
-#define TYPE_BSSID 1
-#define TYPE_OLD_BSSID 2
+#define TYPE_NETWORK_NAME           0
+#define TYPE_BSSID                  1
+#define TYPE_OLD_BSSID              2
 #define TYPE_MOBILE_STATION_ADDRESS 3
-#define TYPE_CAPABILITIES 4
-#define TYPE_ANNOUNCE_INTERVAL 5
-#define TYPE_HANDOVER_TIMEOUT 6
-#define TYPE_MESSAGE_ID 7
-#define TYPE_PHY_TYPE 16
-#define TYPE_REGULATORY_DOMAIN 17
-#define TYPE_RADIO_CHANNEL 18
-#define TYPE_BEACON_INTERVAL 19
-#define TYPE_OUI_IDENTIFIER 128
-#define TYPE_NEIGHBOR_INFO 0x85
-#define TYPE_LOADINFO 0x86
-#define TYPE_SEEN_STATIONS 0x87
-#define TYPE_SEEN_NEIGHBORS 0x88
-#define BUFFER_SIZE 256
+#define TYPE_CAPABILITIES           4
+#define TYPE_ANNOUNCE_INTERVAL      5
+#define TYPE_HANDOVER_TIMEOUT       6
+#define TYPE_MESSAGE_ID             7
+#define TYPE_PHY_TYPE               16
+#define TYPE_REGULATORY_DOMAIN      17
+#define TYPE_RADIO_CHANNEL          18
+#define TYPE_BEACON_INTERVAL        19
+#define TYPE_OUI_IDENTIFIER         128
+#define TYPE_NEIGHBOR_INFO          0x85
+#define TYPE_LOADINFO               0x86
+#define TYPE_SEEN_STATIONS          0x87
+#define TYPE_SEEN_NEIGHBORS         0x88
+#define BUFFER_SIZE                 512
 
 struct TLV
 {
@@ -72,7 +76,6 @@ struct PDU
     unsigned char *Radio_Channel;
     unsigned char *Beacon_Interval;
     unsigned char *OUI_Identifier;
-
     unsigned char *Neighbor_Info;
     unsigned char *Load_Info;
     unsigned char *Seen_Stations;
@@ -97,15 +100,15 @@ unsigned char* alloc_IAPP_msg(int nmemb, uint8_t size)
 }
 
 
-void add_IAPP_Version(unsigned char** p, const char* val)
+void add_IAPP_Version(unsigned char** p, uint8_t* val)
 {
     //fprintf(stderr, "TEST: %p\n", *p);
-    *p = (unsigned char*)memcpy(*p, val, 1) + 1;
+    *p = (unsigned char*)memcpy(*p, (const char*)val, 1) + 1;
 }
 
-void add_IAPP_Type(unsigned char** p, const char* val)
+void add_IAPP_Type(unsigned char** p, uint8_t* val)
 {
-    *p = (unsigned char*)memcpy(*p, val, 1) + 1;
+    *p = (unsigned char*)memcpy(*p, (const char*)val, 1) + 1;
 }
 
 void add_IAPP_SSID(unsigned char** p, unsigned char* val)
@@ -130,6 +133,16 @@ void add_IAPP_BSSID(unsigned char** p, uint8_t* val)
     (*p)[0] = TYPE_BSSID;
     (*p)[1] = 0;
     uint8_t length=6;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, (const char*)val, length) + length;
+}
+
+void add_IAPP_Neighbor_Info(unsigned char** p, uint8_t* val)
+{
+    (*p)[0] = TYPE_NEIGHBOR_INFO;
+    (*p)[1] = 0;
+    uint8_t length = 7;
     (*p)[2] = length;
     (*p)+=3;
     *p = (unsigned char*)memcpy(*p, (const char*)val, length) + length;
@@ -306,35 +319,12 @@ void hexdump(void *ptr, int buflen)
     }
 }
 
-//static char *rand_string(char *str, size_t size)
-//{
-//    const char charset[] = "abcdef0123456789";
-//    if (size) {
-//        --size;
-//        for (size_t n = 0; n < size; n++) {
-//            int key = rand() % (int) (sizeof charset - 1);
-//            str[n] = charset[key];
-//        }
-//        str[size] = '\0';
-//    }
-//    return str;
-//}
-//
-//char* rand_string_alloc(size_t size)
-//{
-//     char *s = (char*)malloc(size + 1);
-//     if (s) {
-//         rand_string(s, size);
-//     }
-//     return s;
-//}
-
 struct sockaddr_in localSock;
 struct sockaddr_in dest_addr;
 struct ip_mreq group;
 int sd;
 int datalen;
-unsigned char databuf[BUFFER_SIZE];
+unsigned char databuf[BUFFER_SIZE] = {};
 
 int main(int argc, char *argv[]){
 
@@ -399,9 +389,10 @@ int main(int argc, char *argv[]){
     
     /* create random variable for SSID & BSSID and Mobile_Address */
     
-    printf("argv[1]: %s\n", argv[1]);
+    printf("argv[1]: %s\n", argv[1]); // for type
+    printf("argv[2]: %s\n", argv[2]); // for traffic
     
-    int max_traffic = atoi(argv[1]);
+    int max_traffic = atoi(argv[2]);
     int size_array = 200;
 
     unsigned char ssidholder[size_array][33];
@@ -426,32 +417,46 @@ int main(int argc, char *argv[]){
     
         // 1. store the array in a 2D array of 100 elements
         // 1.1 generate and store in 'ssidholder' 
-        snprintf((char*)ssidholder[i], sizeof(ssidholder[i]), "RANDOMSSID-%02d", 0 + rand() % 99 );
+        snprintf((char*)ssidholder[i], sizeof(ssidholder[i]), "RANDOMSSID-%02d", 0 + rand() % 100 );
         
         // 1.2 generate and store in 'bssidholder'
         for(int j=0; j<6; j++)
         {
-            bssidholder[i][j] = (rand() % 255);
+            bssidholder[i][j] = (rand() % 256);
             if(bssidholder[i][j] == '\x22')
                 bssidholder[i][j]++;
         }
 
         // 1.3 generate and store in 'mobile_addressholder'
-        sprintf((char*)mobile_addressholder[i], "Mob%c%02u", 65+ (rand() % (90-66)), 0 + (rand() % (99)) );
+        sprintf((char*)mobile_addressholder[i], "Mob%c%02u", 65 + (rand() % (90-66)), 0 + (rand() % (100)) );
     }
     
-    /* generate a random neigbors' bssid LIST of (say) 20 neighbors */
+    printf("\nmax_traffic: %d\nsize_array: %d\n", max_traffic, size_array);
+    
+    /* generate a random neigbors' bssid LIST of (say) #rows of neighbors */
+
     uint8_t neighbors_columns = 10;
-    uint8_t neighbors_rows = 20;
+    uint8_t neighbors_rows = 8;
     uint8_t neighbors_list[neighbors_rows][neighbors_columns];
+    
     for(int i=0; i<neighbors_rows; i++)
     {
-        for(int j=; j<neighbors_columns; j++)
+        /* Value of Neighbor 
+         * &
+         * Strength at the last index */
+
+        /* Values of Neighbor (== BSSID of the Neighbor) */
+        for(int j=0; j<6; j++)
         {
-            neighbors_list[i][j] = (rand() % 255);
+            neighbors_list[i][j] = (rand() % (256));
             if(neighbors_list[i][j] == '\x22')
                 neighbors_list[i][j]++;
         }
+
+        /* Strength of the Neighbor */
+        neighbors_list[i][6] = 0 + (rand() % (101));
+        if(neighbors_list[i][6] == '\x22')
+            neighbors_list[i][6]++;
     }
 
     /* 3. extract the 1D array from the 2D array */
@@ -459,7 +464,8 @@ int main(int argc, char *argv[]){
         uint8_t bssid[6];
         unsigned char mobile_address[6];
 
-    printf("max_traffic: %d\nsize_array: %d\n", max_traffic, size_array);
+        uint8_t iapp_version[1] = {0x01};
+        uint8_t iapp_type[1] = {atoi(argv[1])};
     uint8_t all_packets_counter = 0;
     for(int i=0; i<max_traffic; i++)
     {
@@ -467,41 +473,81 @@ int main(int argc, char *argv[]){
         /* Add the Data */        
         unsigned char* bufptr = NULL; // bufptr: at the end of buffer (adding)
         unsigned char* bufptr2 = NULL; // bufptr2: at the beginning of buffer (printing)
-        bufptr = alloc_IAPP_msg(256, sizeof(char));
+        bufptr = alloc_IAPP_msg(BUFFER_SIZE, sizeof(char));
         bufptr2 = bufptr;
-
         /* Fill the IAPP Structure */
-        add_IAPP_Version(&bufptr, "\x01");
-        add_IAPP_Type(&bufptr, "\x01");
+        add_IAPP_Version(&bufptr, iapp_version);
+        add_IAPP_Type(&bufptr, iapp_type);
+
+        /* (TYPE 6) Filling a SEENNEIGBORS_INFO Packet */
+        /* USAGE: 
+         * This scans the area once per day to see if
+         * there are any neighbors available and get their BSSID.
+         * BUT: for the purpose of testing we generate a random List
+         * of BSSIDs as neighbors and get them sent once a day */
        
         /* Fill the PDU Structure */
-        // extract 'ssid' from 'ssidholder'
-        memcpy(ssid, ssidholder[i], sizeof(ssid));
-        add_IAPP_SSID(&bufptr, ssid); // length 2-33
-        
-        // extract 'bssid' from 'bssidholder'
-        for(int j=0; j<6; j++)
+        for(int j=0; j<neighbors_rows;j++)
         {
-            bssid[j] = bssidholder[j][i];
+            add_IAPP_Neighbor_Info(&bufptr, neighbors_list[j]); 
         }
-        add_IAPP_BSSID(&bufptr, bssid); // length always 6
 
-        add_IAPP_Old_BSSID(&bufptr, "\xff\x00\x11\x11\x00\xff"); // length always 6
-       
-        // extract 'mobile_address' from 'mobile_addressholder'
-        memcpy(mobile_address, mobile_addressholder[i], sizeof(mobile_address));
-        add_IAPP_Mobile_Station_Address(&bufptr, mobile_address); // length always 6
-
-        add_IAPP_Capabilities(&bufptr, "\x20"); // length always 1
-        add_IAPP_Announce_Interval(&bufptr, "\x00\x78"); // length always 2
-        add_IAPP_Handover_Timeout(&bufptr, "\x03\xe8"); // length always 2
-        add_IAPP_Message_ID(&bufptr, "\x00\x50"); // length always 2
-        add_IAPP_Phy_Type(&bufptr, "\x07"); // length always 1
-        add_IAPP_Regulatory_Domain(&bufptr, "\x00"); // length always 1
-        add_IAPP_Radio_Channel(&bufptr, "\x06"); // length always 1
-        add_IAPP_Beacon_Interval(&bufptr, "\x00\x64"); // length always 2
-        add_IAPP_OUI_Identifer(&bufptr, "\x10\x56\x57"); // length always 3
+//        // extract 'ssid' from 'ssidholder'
+//        memcpy(ssid, ssidholder[i], sizeof(ssid));
+//        add_IAPP_SSID(&bufptr, ssid); // length 2-33
+//      
+//        // extract 'bssid' from 'bssidholder'
+//        for(int j=0; j<6; j++)
+//        {
+//            bssid[j] = bssidholder[j][i];
+//        }
+//        add_IAPP_BSSID(&bufptr, bssid); // length always 6
+//
+//        add_IAPP_Old_BSSID(&bufptr, "\xff\x00\x11\x11\x00\xff"); // length always 6
+//       
+//        // extract 'mobile_address' from 'mobile_addressholder'
+//        memcpy(mobile_address, mobile_addressholder[i], sizeof(mobile_address));
+//        add_IAPP_Mobile_Station_Address(&bufptr, mobile_address); // length always 6
+//
+//        add_IAPP_Capabilities(&bufptr, "\x20"); // length always 1
+//        add_IAPP_Phy_Type(&bufptr, "\x07"); // length always 1
+//        add_IAPP_Regulatory_Domain(&bufptr, "\x00"); // length always 1
+//        add_IAPP_Radio_Channel(&bufptr, "\x06"); // length always 1
+//        add_IAPP_Beacon_Interval(&bufptr, "\x00\x64"); // length always 2
+//        add_IAPP_OUI_Identifer(&bufptr, "\x10\x56\x57"); // length always 3
         add_Terminator(&bufptr); // Terminator to determine the End Of Buffer
+
+          /* (TYPE 1) Filling an ANNOUNCE_RESPONSE Packet */
+
+//        /* Fill the PDU Structure */
+//        // extract 'ssid' from 'ssidholder'
+//        memcpy(ssid, ssidholder[i], sizeof(ssid));
+//        add_IAPP_SSID(&bufptr, ssid); // length 2-33
+//        
+//        // extract 'bssid' from 'bssidholder'
+//        for(int j=0; j<6; j++)
+//        {
+//            bssid[j] = bssidholder[j][i];
+//        }
+//        add_IAPP_BSSID(&bufptr, bssid); // length always 6
+//
+//        add_IAPP_Old_BSSID(&bufptr, "\xff\x00\x11\x11\x00\xff"); // length always 6
+//       
+//        // extract 'mobile_address' from 'mobile_addressholder'
+//        memcpy(mobile_address, mobile_addressholder[i], sizeof(mobile_address));
+//        add_IAPP_Mobile_Station_Address(&bufptr, mobile_address); // length always 6
+//
+//        add_IAPP_Capabilities(&bufptr, "\x20"); // length always 1
+//        add_IAPP_Announce_Interval(&bufptr, "\x00\x78"); // length always 2
+//        add_IAPP_Handover_Timeout(&bufptr, "\x03\xe8"); // length always 2
+//        add_IAPP_Message_ID(&bufptr, "\x00\x50"); // length always 2
+//        add_IAPP_Phy_Type(&bufptr, "\x07"); // length always 1
+//        add_IAPP_Regulatory_Domain(&bufptr, "\x00"); // length always 1
+//        add_IAPP_Radio_Channel(&bufptr, "\x06"); // length always 1
+//        add_IAPP_Beacon_Interval(&bufptr, "\x00\x64"); // length always 2
+//        add_IAPP_OUI_Identifer(&bufptr, "\x00\xa0\x01"); // length always 3
+//        add_Terminator(&bufptr); // Terminator to determine the End Of Buffer
+
 
         /* calculate the length of buffer & PRINT BUFFER */
         int buf_modified_length = 0;
@@ -515,8 +561,6 @@ int main(int argc, char *argv[]){
 
         /* 5. send the buffer to the access point */
         /* Send through the socket and print what's been sent */
-        printf("Sending datagram message...OK.\n");
-        printf("The message to multicast server is: \n");
         printf("New Buffer Length: %i\n",buf_modified_length);
 
         /*  Send whole data buffer to the Server (Source 'AP') with MULTICAST IP 224.0.1.76  */

@@ -14,35 +14,44 @@
 #include <netdb.h>
 #include <ctype.h>
 
-#define GENERAL_VERSION 1
+#define GENERAL_VERSION             1
 
-#define ANNOUNCE_REQUEST 0 
-#define ANNOUNCE_RESPONSE 1 
-#define HANDOVER_REQUEST 2 
-#define HANDOVER_RESPONSE 3 
+#define ANNOUNCE_REQUEST            0 
+#define ANNOUNCE_RESPONSE           1 
+#define HANDOVER_REQUEST            2 
+#define HANDOVER_RESPONSE           3
+#define SEENSTATION_REQUEST         4
+#define SEENSTATION_RESPONSE        5
+#define SEENNEIGHBORS_INFO          6
+#define IAPP_MAXTYPE                6
 
-#define TYPE_NETWORK_NAME 0
-#define TYPE_BSSID 1
-#define TYPE_OLD_BSSID 2
+#define TYPE_NETWORK_NAME           0
+#define TYPE_BSSID                  1
+#define TYPE_OLD_BSSID              2
 #define TYPE_MOBILE_STATION_ADDRESS 3
-#define TYPE_CAPABILITIES 4
-#define TYPE_ANNOUNCE_INTERVAL 5
-#define TYPE_HANDOVER_TIMEOUT 6
-#define TYPE_MESSAGE_ID 7
-#define TYPE_PHY_TYPE 16
-#define TYPE_REGULATORY_DOMAIN 17
-#define TYPE_RADIO_CHANNEL 18
-#define TYPE_BEACON_INTERVAL 19
-#define TYPE_OUI_IDENTIFIER 128
+#define TYPE_CAPABILITIES           4
+#define TYPE_ANNOUNCE_INTERVAL      5
+#define TYPE_HANDOVER_TIMEOUT       6
+#define TYPE_MESSAGE_ID             7
+#define TYPE_PHY_TYPE               16
+#define TYPE_REGULATORY_DOMAIN      17
+#define TYPE_RADIO_CHANNEL          18
+#define TYPE_BEACON_INTERVAL        19
+#define TYPE_OUI_IDENTIFIER         128
+#define TYPE_NEIGHBOR_INFO          133
+#define TYPE_LOAD_INFO              134
+#define TYPE_SEEN_STATIONS          135
+#define TYPE_SEEN_NEIGHBORS         136
 
-#define BUFFER_SIZE 256
+#define BUFFER_SIZE                 256
 
 struct TLV
 {
     uint8_t type;
     uint8_t type_option=0x00;
     uint8_t length;
-    unsigned char value[0]; 
+    unsigned char value[0];
+
 }__attribute__((packed));
 
 struct PDU
@@ -61,6 +70,10 @@ struct PDU
     unsigned char *Radio_Channel;
     unsigned char *Beacon_Interval;
     unsigned char *OUI_Identifier;
+    unsigned char *Neighbor_Info;
+    unsigned char *Load_Info;
+    unsigned char *Seen_Stations;
+    unsigned char *Seen_Neighbors;
 
     struct TLV *tlv;
 
@@ -250,7 +263,7 @@ void printhexvalue(void *ptr, int buflen)
             printf("%02x ", buf[i]);
         }
     }
-    printf("\n");
+    //printf("\n");
 }
 
 void printdecvalue(void *ptr, int buflen)
@@ -260,7 +273,6 @@ void printdecvalue(void *ptr, int buflen)
     {
         printf("%02d ", buf[i]);
     }
-    printf("\n");
 }
 
 void hexdump(void *ptr, int buflen)
@@ -295,7 +307,7 @@ struct sockaddr_in dest_addr;
 struct ip_mreq group;
 int sd;
 int datalen;
-unsigned char databuf[BUFFER_SIZE];
+unsigned char databuf[BUFFER_SIZE] = {};
 
 int main(int argc, char *argv[]){
     
@@ -304,7 +316,6 @@ int main(int argc, char *argv[]){
     struct timeval tv;
     /* Set of socket descriptors */
     fd_set readfds;
-    //fd_set writefds;
 
     /* Create a datagram socket on which to receive */
     sd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -318,7 +329,6 @@ int main(int argc, char *argv[]){
 
     // clear the set ahead of time
     FD_ZERO(&readfds);
-    //FD_ZERO(&writefds);
 
     /* Enable SO_REUSEADDR to allow multiple instancesof this
        application to receive copies of the multicase datagrams */
@@ -370,233 +380,306 @@ int main(int argc, char *argv[]){
     /* Preparation for select() */
     while(1)
     {
-    
-    tv.tv_sec = 2;
-    tv.tv_usec = 500000;
-    // add file descriptor to the set
-    FD_SET(sd, &readfds);
-    //FD_SET(sd, &writefds);
-    activity = select(sd+1, &readfds, NULL, NULL, &tv);
-    
-    if((activity < 0))
-    {
-        perror("Select error");
-    }
-    else if(activity == 0)
-    {
-        printf("Timeout! No data in 2,5 seconds\n");
-    }
-    else
-    {
-        /* Here is what happens to every socket "reading" */
-        if(FD_ISSET(sd, &readfds))
-        {
-            /* define a structure member to get source IP Address */
-            struct sockaddr_in from;
-            socklen_t fromLen = sizeof(from);
-
-            /* Receive the data packet */
-            int readoutlen = recvfrom(sd, databuf, sizeof(databuf), 0, (struct sockaddr*)&from, &fromLen);
-            printf("-- Message Length : %d\n", readoutlen);
-
-            /* Get source IP Address */
-            char ip[16];
-            inet_ntop(AF_INET, &from.sin_addr, ip, sizeof(ip));
-            printf("-- Source IP Address: %s -- Port: %i\n", ip, ntohs(from.sin_port));
-
-            
-            /* Check Receiving */
-            if(readoutlen < 0)
-            {
-            perror("Reading datagram message error");
-            close(sd);
-            exit(1);
-            }
-            /* Send to the proper port number with the IP address
-            specified as Multicast IP Address to THIS -->> 224.0.1.76 */
-            memset((char *) &dest_addr, 0, sizeof(dest_addr));
-            dest_addr.sin_family = AF_INET;
-            dest_addr.sin_port = htons(2313);
-            dest_addr.sin_addr.s_addr= inet_addr("224.0.1.76");
-            printf("-- Destination IP Address: %s -- Port: %i\n", inet_ntoa(dest_addr.sin_addr), ntohs(dest_addr.sin_port));
-
-            /* Read from the socket */
-            printf("Reading datagram message...OK.\n");
-            printf("\nThe message from multicast server is: \n");
-            hexdump(databuf, readoutlen); // This is to print out the Data Package
-            printf("\n\n");
-
         
+        tv.tv_sec = 2;
+        tv.tv_usec = 500000;
+        // add file descriptor to the set
+        FD_SET(sd, &readfds);
+        //FD_SET(sd, &writefds);
+        activity = select(sd+1, &readfds, NULL, NULL, &tv);
+        
+        if((activity < 0))
+        {
+            perror("Select error");
         }
-    }
+        else if(activity == 0)
+        {
+            printf("Timeout! No data in 2,5 seconds\n");
+        }
+        else
+        {
+            /* Here is what happens to every socket "reading" */
+            if(FD_ISSET(sd, &readfds))
+            {
+                /* define a structure member to get source IP Address */
+                struct sockaddr_in from;
+                socklen_t fromLen = sizeof(from);
+  
+                /* Receive the data packet */
+                memset(databuf, 0, sizeof(databuf));
+                int readoutlen = recvfrom(sd, databuf, sizeof(databuf), 0, (struct sockaddr*)&from, &fromLen);
+                printf("-- Message Length : %d\n", readoutlen);
+  
+                /* Get source IP Address */
+                char ip[16];
+                inet_ntop(AF_INET, &from.sin_addr, ip, sizeof(ip));
+                printf("-- Source IP Address: %s -- Port: %i\n", ip, ntohs(from.sin_port));
+  
+                
+                /* Check Receiving */
+                if(readoutlen < 0)
+                {
+                perror("Reading datagram message error");
+                close(sd);
+                exit(1);
+                }
+                /* Send to the proper port number with the IP address
+                specified as Multicast IP Address to THIS -->> 224.0.1.76 */
+                memset((char *) &dest_addr, 0, sizeof(dest_addr));
+                dest_addr.sin_family = AF_INET;
+                dest_addr.sin_port = htons(2313);
+                dest_addr.sin_addr.s_addr= inet_addr("224.0.1.76");
+                printf("-- Destination IP Address: %s -- Port: %i\n", inet_ntoa(dest_addr.sin_addr), ntohs(dest_addr.sin_port));
+  
+                /* Read from the socket */
+                printf("Reading datagram message...OK.\n");
+                printf("\nThe message from multicast server is: \n");
+                hexdump(databuf, readoutlen); // This is to print out the Data Package
+                printf("\n\n");
+  
+                // 1. Define and Initialize the IAPP Pointer to the 'original Buffer'
+                struct IAPP *IAPPPtr = (struct IAPP*)databuf;
+            
+                // 2.(a) Define another databuffer (*bytep) shifted by two
+                unsigned char *bytep = databuf+2; /* skip version + type field sven */
+                // 2.(b) Define and Initialize the tlv Pointer to the 'modified Buffer'
+                struct TLV *p =(struct TLV *)bytep;
+            
+                /*      Check for General Version and Type of Packet    */
+                printf("General Version: (%u)\n", IAPPPtr->general_version);
+            
+                switch(IAPPPtr->general_type)
+                {
+                    case ANNOUNCE_REQUEST:
+                        printf("General Type: Announce Request (%u)\n", IAPPPtr->general_type);
+                        break;
+            
+                    case ANNOUNCE_RESPONSE:
+                        printf("General Type: Announce Response (%u)\n", IAPPPtr->general_type);
+                        break;
+            
+                    case HANDOVER_REQUEST:
+                        printf("General Type: Handover Request  (%u)\n", IAPPPtr->general_type);
+                        break;
+            
+                    case HANDOVER_RESPONSE:
+                        printf("General Type: Handover Response  (%u)\n", IAPPPtr->general_type);
+                        break;
+            
+                    case SEENSTATION_REQUEST:
+                        printf("General Type: SeenStations Request (%u)\n", IAPPPtr->general_type);
+                        break;
+            
+                    case SEENSTATION_RESPONSE:
+                        printf("General Type: SeenStations Response (%u)\n", IAPPPtr->general_type);
+                        break;
+            
+                    case SEENNEIGHBORS_INFO:
+                        printf("General Type: SeenNeighbors Info (%u)\n", IAPPPtr->general_type);
+                        break;
+            
+                    default:
+                        printf("General Type: Unknown Data Packet!\n");
+            
+                }
+                printf("Protocol Data Units: \n\n");
+                
+                /*Loop through the buffer -beginning from the third Index of buffer-*/
+                for(int i=0; (i< datalen) && (p->length != 0) ;)
+                {
+                    p = (struct TLV *)bytep; /* sven */
+                    /*      Shifting the address for p to next PD Member    */
+                    bytep += 3 + p->length;
+            
+                    /*      Print the Members of struct     */
+                    /*      1.Check for every standard Type
+                     *      2.Print its name
+                     *      3.Send the specified data frame */
+            
+                    switch(p->type)
+                    {
+                        case TYPE_NETWORK_NAME:
+                            if(p->length == 0)
+                            {
+                                printf("-- End of Data Packet --\n");
+                                break;
+                            }
+                            printf("\t\t\t\t\t%-40s\n\t\t\t\t\t%-s\n", "NETWORK NAME (0)", "________________");
 
-//    // 1. Define and Initialize the IAPP Pointer to the 'original Buffer'
-//    struct IAPP *IAPPPtr = (struct IAPP*)databuf;
-//
-//    // 2.(a) Define another databuffer (*bytep) shifted by two
-//    unsigned char *bytep = databuf+2; /* skip version + type field sven */
-//    // 2.(b) Define and Initialize the tlv Pointer to the 'modified Buffer'
-//    struct TLV *p =(struct TLV *)bytep;
-//
-//    /*      Check for General Version and Type of Packet    */
-//    printf("General Version: (%u)\n", IAPPPtr->general_version);
-//
-//    switch(IAPPPtr->general_type)
-//    {
-//        case ANNOUNCE_REQUEST:
-//            printf("General Type: Announce Request (%u)\n", IAPPPtr->general_type);
-//            break;
-//
-//        case ANNOUNCE_RESPONSE:
-//            printf("General Type: Announce Response (%u)\n", IAPPPtr->general_type);
-//
-//            break;
-//        case HANDOVER_REQUEST:
-//            printf("General Type: Handover Request  (%u)\n", IAPPPtr->general_type);
-//
-//            break;
-//        case HANDOVER_RESPONSE:
-//            printf("General Type: Handover Response  (%u)\n", IAPPPtr->general_type);
-//
-//            break;
-//        default:
-//            printf("Unknown Data Packet!\n");
-//
-//    }
-//    printf("\n");
-//    printf("Protocol Data Units: \n\n");
-//
-//    /*Loop through the buffer -beginning from the third Index of buffer-*/
-//    for(int i=0; (i< datalen) && (p->length != 0) ;)
-//    {
-//        p = (struct TLV *)bytep; /* sven */
-//        /*      Shifting the address for p to next PD Member    */
-//        bytep += 3 + p->length;
-//
-//        /*      Print the Members of struct     */
-//        /*      1.Check for every standard Type
-//         *      2.Print its name
-//         *      3.Send the specified data frame */
-//
-//        switch(p->type)
-//        {
-//            case TYPE_NETWORK_NAME:
-//                if(p->length == 0)
-//                {
-//                    printf("-- End of Data Packet --\n");
-//                    break;
-//                }
-//                printf("- Network Name : (%u) \n", p->type);
-//                printf("- Length is : %u \n", p->length);
-//                printf("- Value : %.*s - ", p->length, p->value);
-//                printhexvalue(p->value, p->length);
-//                printf("\n");
-//                break;
-//
-//            case TYPE_BSSID:
-//                printf("- BSSID : (%u) \n", p->type);
-//                printf("- Length is : %u \n", p->length);
-//                printf("- Value : ");
-//                printhexvalue(p->value, p->length);
-//                printf("\n");
-//                break;
-//
-//            case TYPE_OLD_BSSID:
-//                printf("- Old BSSID : (%u) \n", p->type);
-//                printf("- Length is : %u \n", p->length);
-//                printf("- Value : ");
-//                printhexvalue(p->value, p->length);
-//                printf("\n");
-//                break;
-//
-//            case TYPE_MOBILE_STATION_ADDRESS:
-//                printf("- Mobile Station Address : (%u) \n", p->type);
-//                printf("- Length is : %u \n", p->length);
-//                printf("- Value : ");
-//                printhexvalue(p->value, p->length);
-//                printf("\n");
-//                break;
-//
-//            case TYPE_MESSAGE_ID:
-//                printf("- Message ID : (%u) \n", p->type);
-//                printf("- Length is : %u \n", p->length);
-//                printf("- Value : ");
-//                printhexvalue(p->value, p->length);
-//                printf("\n");
-//                break;
-//
-//            case TYPE_CAPABILITIES:
-//                printf("- Capabilities : (%u) \n", p->type);
-//                printf("- Length is : %u \n", p->length);
-//                printf("- Value : ");
-//                printhexvalue(p->value, p->length);
-//                printf("\n");
-//                break;
-//
-//            case TYPE_ANNOUNCE_INTERVAL:
-//                printf("- Announce Interval : (%u) \n", p->type);
-//                printf("- Length is : %u \n", p->length);
-//                printf("- Value : (%u) seconds - ", ntohs(*(uint16_t *)(p->value)));
-//                printhexvalue(p->value, p->length);
-//                printf("\n");
-//                break;
-//
-//            case TYPE_HANDOVER_TIMEOUT:
-//                printf("- Handover Timeout : (%u) \n", p->type);
-//                printf("- Length is : %u \n", p->length);
-//                printf("- Value : (%u) Kus - ", ntohs(*(uint16_t *)(p->value)));
-//                printhexvalue(p->value, p->length);
-//                printf("\n");
-//                break;
-//
-//            case TYPE_PHY_TYPE:
-//                printf("- Phy Type : (%u) \n", p->type);
-//                printf("- Length is : %u \n", p->length);
-//                printf("- Value : ");
-//                printhexvalue(p->value, p->length);
-//                printf("\n");
-//                break;
-//
-//            case TYPE_REGULATORY_DOMAIN:
-//                printf("- Regulatory Domain : (%u) \n", p->type);
-//                printf("- Length is : %u \n", p->length);
-//                printf("- Value : ");
-//                printhexvalue(p->value, p->length);
-//                printf("\n");
-//                break;
-//
-//            case TYPE_RADIO_CHANNEL:
-//                printf("- Radio Channel : (%u) \n", p->type);
-//                printf("- Length is : %u \n", p->length);
-//                printf("- Value : ");
-//                printhexvalue(p->value, p->length);
-//                printf("\n");
-//                break;
-//
-//            case TYPE_BEACON_INTERVAL:
-//                printf("- Beacon Interval : (%u) \n", p->type);
-//                printf("- Length is : %u \n", p->length);
-//                printf("- Value : (%u) Kus - ", ntohs(*(uint16_t *)(p->value)));
-//                printhexvalue(p->value, p->length);
-//                printf("\n");
-//                break;
-//
-//            case TYPE_OUI_IDENTIFIER:
-//                printf("- OUI Identifier : (%u) \n", p->type);
-//                printf("- Length is : %u \n", p->length);
-//                printf("- Value : ");
-//                printhexvalue(p->value, p->length);
-//                printf("\n");
-//                break;
-//
-//            default:
-//                printf("Unknown PDU Type : (%u)\n", p->type);
-//        }
-//        /*      Shifting the address for i      */
-//        i += sizeof(TLV) + (p->length); //next beginning
-//        printf("\n");
-//    }
+                            printf("\t%-30s\t\t|\t\t%-30s\n", "SSID", "LENGTH");
+                            printf("\t%-30.*s\t\t|\t\t%-30d\n", p->length, p->value, p->length);
+                            break;
 
+                        case TYPE_BSSID:
+       
+                            printf("\t\t\t\t\t%-40s\n\t\t\t\t\t%-s\n", "MAC ADDRESS (1)", "_________________");
+
+                            printf("\t%-30s\t\t|\t\t%-30s\n", "BSSID", "LENGTH");
+                            printf("\t");
+                            printhexvalue(p->value, p->length);
+                            printf("\t\t\t|\t\t%-30d\n", p->length);
+                            break;
+            
+                        case TYPE_OLD_BSSID:
+                            printf("\t\t\t\t\t%-40s\n\t\t\t\t\t%-s\n", "OLD MAC ADDRESS (2)", "______________");
+
+                            printf("\t%-30s\t\t|\t\t%-30s\n", "OLD BSSID", "LENGTH");
+                            printf("\t");
+                            printhexvalue(p->value, p->length);
+                            printf("\t\t\t|\t\t%-30d\n", p->length);
+                            break;
+            
+                        case TYPE_MOBILE_STATION_ADDRESS:
+                            printf("\t\t\t\t\t%-40s\n\t\t\t\t\t%-s\n", "MOB.STATION ADDRESS(3)", "_________________");
+
+                            printf("\t%-30s\t\t|\t\t%-30s\n", "MS ADDRESS", "LENGTH");
+                            printf("\t");
+                            printhexvalue(p->value, p->length);
+                            printf("\t\t\t|\t\t%-30d\n", p->length);
+                            break;
+            
+                        case TYPE_MESSAGE_ID:
+                            printf("\t\t\t\t\t%-40s\n\t\t\t\t\t%-s\n", "MESSAGE ID (7)", "_________________");
+
+                            printf("\t%-30s\t\t|\t\t%-30s\n", "MESSAGE ID", "LENGTH");
+                            printf("\t");
+                            printf("(%u) \t\t", ntohs(*(uint16_t *)(p->value)));
+                            printf("\t\t\t|\t\t%-30d\n", p->length);
+                            break;
+            
+                        case TYPE_CAPABILITIES:
+                            printf("\t\t\t\t\t%-40s\n\t\t\t\t\t%-s\n", "CAPABILITIES (4)", "________________");
+
+                            printf("\t%-30s\t\t|\t\t%-30s\n", "CAPABILITIES (HEX)", "LENGTH");
+                            printf("\t");
+                            printhexvalue(p->value, p->length);
+                            printf("\t\t\t\t\t|\t\t%-30d\n", p->length);
+                            break;
+            
+                        case TYPE_ANNOUNCE_INTERVAL:
+                            printf("\t\t\t\t\t%-40s\n\t\t\t\t\t%-s\n", "ANNOUNCE INTERVAL (5)", "____________________");
+
+                            printf("\t%-30s\t\t|\t\t%-30s\n", "ANNOUNCE INT", "LENGTH");
+                            printf("\t");
+                            printf("(%u) seconds\t", ntohs(*(uint16_t *)(p->value)));
+                            printf("\t\t\t|\t\t%-30d\n", p->length);
+                            break;
+            
+                        case TYPE_HANDOVER_TIMEOUT:
+                            printf("\t\t\t\t\t%-40s\n\t\t\t\t\t%-s\n", "HANDOVER TIMEOUT (6)", "____________________");
+
+                            printf("\t%-30s\t\t|\t\t%-30s\n", "HANDOVER TIMEOUT", "LENGTH");
+                            printf("\t");
+                            printf("(%u) Kus\t", ntohs(*(uint16_t *)(p->value)));
+                            printf("\t\t\t|\t\t%-30d\n", p->length);
+                            break;
+            
+                        case TYPE_PHY_TYPE:
+                            printf("\t\t\t\t\t%-40s\n\t\t\t\t\t%-s\n", "PHYSICAL TYPE (16)", "____________________");
+
+                            printf("\t%-30s\t\t|\t\t%-30s\n", "PHY TYPE", "LENGTH");
+                            printf("\t(");
+                            printdecvalue(p->value, p->length);
+                            printf("\b)\t\t");
+                            printf("\t\t\t|\t\t%-30d\n", p->length);
+                            break;
+            
+                        case TYPE_REGULATORY_DOMAIN:
+                            printf("\t\t\t\t\t%-40s\n\t\t\t\t\t%-s\n", "REGULATORY DOMAIN (17)", "____________________");
+
+                            printf("\t%-30s\t\t|\t\t%-30s\n", "REG. DOMAIN", "LENGTH");
+                            printf("\t(");
+                            printdecvalue(p->value, p->length);
+                            printf("\b)\t\t");
+                            printf("\t\t\t|\t\t%-30d\n", p->length);
+                            break;
+            
+                        case TYPE_RADIO_CHANNEL:
+                            printf("\t\t\t\t\t%-40s\n\t\t\t\t\t%-s\n", "RADIO CHANNEL (18)", "____________________");
+
+                            printf("\t%-30s\t\t|\t\t%-30s\n", "RADIO CHANNEL", "LENGTH");
+                            printf("\t(");
+                            printdecvalue(p->value, p->length);
+                            printf("\b)\t\t");
+                            printf("\t\t\t|\t\t%-30d\n", p->length);
+                            break;
+            
+                        case TYPE_BEACON_INTERVAL:
+                            printf("\t\t\t\t\t%-40s\n\t\t\t\t\t%-s\n", "BEACON INTERVAL (19)", "_________________");
+
+                            printf("\t%-30s\t\t|\t\t%-30s\n", "BEACON INTERVAL", "LENGTH");
+                            printf("\t");
+                            printf("(%u) \t\t", ntohs(*(uint16_t *)(p->value)));
+                            printf("\t\t\t|\t\t%-30d\n", p->length);
+                            break;
+            
+                        case TYPE_OUI_IDENTIFIER:
+                            printf("\t\t\t\t\t%-40s\n\t\t\t\t\t%-s\n", "OUI IDENTIFIER (128)", "_________________");
+
+                            printf("\t%-30s\t\t|\t\t%-30s\n", "OUI_IDENT.", "LENGTH");
+                            printf("\t");
+                            printhexvalue(p->value, p->length);
+                            printf("\t\t\t\t|\t\t%-30d\n", p->length);
+                            break;
+            
+                        case TYPE_NEIGHBOR_INFO:
+                            if(IAPPPtr->general_type == SEENNEIGHBORS_INFO)
+                            {
+                                printf("\t\t\t%-40s\n\t\t\t%-s\n", "NEIGHBOR INFO (133)", "___________________");
+                                printf("\t%-10s\t\t|\t\t%-10s\n", "MAC-Address", "Strength");
+                                printf("\t");
+                                printhexvalue(p->value, (p->length)-1);
+                                printf("\t|\t\t%-10d\n", p->value[6]);
+                                break;
+                            }
+                            else 
+                            {
+                                printf("- Neighbor INFO : (%u)\n", p->type);
+                                printf("- Length is : %u \n", p->length);
+                                printf("- Value : ");
+                                printhexvalue(p->value, p->length);
+                                break;
+                            }
+  
+                        case TYPE_LOAD_INFO:
+                            printf("- Load INFO : (%u)\n", p->type);
+                            printf("- Length is : %u \n", p->length);
+                            printf("- Value : ");
+                            printhexvalue(p->value, p->length);
+                            printf("\n");
+                            break;
+  
+                        case TYPE_SEEN_STATIONS:
+                            printf("- Seen Stations : (%u)\n", p->type);
+                            printf("- Length is : %u \n", p->length);
+                            printf("- Value : ");
+                            printhexvalue(p->value, p->length);
+                            printf("\n");
+                            break;
+  
+                        case TYPE_SEEN_NEIGHBORS:
+                            printf("- Seen Neighbors : (%u)\n", p->type);
+                            printf("- Length is : %u \n", p->length);
+                            printf("- Value : ");
+                            printhexvalue(p->value, p->length);
+                            printf("\n");
+                            break;
+  
+                        default:
+                            printf("- Unknown PDU Type : (%u)\n", p->type);
+                            printf("- Length is : %u \n", p->length);
+                            printf("- Value : %.*s - ", p->length, p->value);
+                            printhexvalue(p->value, p->length);
+                            printf("\n");
+                    }
+
+                    /*      Shifting the address for i      */
+                    i += sizeof(TLV) + (p->length); //next beginning
+                    printf("\n");
+                }
+            }
+        }
+  
     }
     return 0;
 }
