@@ -12,14 +12,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <stdbool.h>
 #include <sys/time.h>
 #include <sys/select.h>
 #include <netinet/if_ether.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <ctype.h>
-
+#include <limits.h>
+#include "uthash.h"
 
 #define GENERAL_VERSION      1
 
@@ -49,12 +50,251 @@
 #define TYPE_LOADINFO               0x86
 #define TYPE_SEEN_STATIONS          0x87
 #define TYPE_SEEN_NEIGHBORS         0x88
+
+#define SEENSTATIONS_BSSID          0x01
+#define SEENSTATIONS_STATION        0x02
+
+#define SEENNEIGHBORS_BSSID         0x01
+
 #define BUFFER_SIZE                 512
+
+#define HASHSIZE                    32
+
+//struct Dataitem
+//{
+//    char* data_char;
+//    char* key_char;
+//};
+//
+//struct Dataitem* hasharray_char[HASHSIZE]={};
+//struct Dataitem* dummyitem_char={};
+//struct Dataitem* item_char={};
+//
+//int hashcode(char* key_char)
+//{
+//    unsigned long int hashval = 0;
+//    int i = 0;
+//
+//    /* Convert string to integer */
+//    while(hashval < ULONG_MAX && i < strlen(key_char))
+//    {
+//        hashval = hashval << 8;
+//        hashval += key_char[i];
+//        i++;
+//    }
+//
+//    return hashval % HASHSIZE;
+//}
+//
+//struct Dataitem *search_char(int key_char)
+//{
+//    // get the hash
+//    int hashindex = hashcode(key_char);
+//
+//    // move in array until an empty
+//    while(hasharray_char[hashindex] != NULL)
+//    {
+//        if(hasharray_char[hashindex]->key_char == key_char)
+//            return hasharray_char[hashindex];
+//
+//        // go to next cell
+//        ++hashindex;
+//
+//        // wrap around the table
+//        hashindex %= HASHSIZE;
+//    }
+//
+//    return NULL;
+//}
+//
+//void insert_char(char* key_char, char* data_char)
+//{
+//    struct Dataitem *item_char = (struct Dataitem*) malloc(sizeof(struct Dataitem));
+//    //strcpy((char*)item_char->data_char, data_char); 
+//    item_char->data_char = data_char;
+//    item_char->key_char = key_char;
+//
+//    // get the hash
+//    int hashindex = hashcode(key_char);
+//
+//    // move in array until an empty or deleted cell
+//    while(hasharray_char[hashindex] != NULL && hasharray_char[hashindex]->key_char != -1)
+//    {
+//        // go to next cell
+//        ++hashindex;
+//
+//        // wrap around the table
+//        hashindex %= HASHSIZE;
+//    }
+//
+//    hasharray_char[hashindex] = item_char;
+//}
+//
+//struct Dataitem* deleteit_char(struct Dataitem* item_char)
+//{
+//    int key_char = item_char->key_char;
+//
+//    // get the hash
+//    int hashindex = hashcode(key_char);
+//
+//    // move in array until an empty
+//    while(hasharray_char[hashindex] != NULL)
+//    {
+//        if(hasharray_char[hashindex]->key_char == key_char)
+//        {
+//            struct Dataitem* temp_char = hasharray_char[hashindex];
+//
+//            // assign a dummy item at deleted position
+//            hasharray_char[hashindex] = dummyitem_char;
+//            return temp_char;
+//        }
+//
+//        // go to next cell
+//        ++hashindex;
+//
+//        // wrap around the table
+//        hashindex %= HASHSIZE;
+//    }
+//
+//    return NULL;
+//}
+//
+//void display_char()
+//{
+//    int i=0;
+//    for(i=0; i<HASHSIZE; i++)
+//    {
+//        if(hasharray_char[i] != NULL)
+//            printf(" (%d,%d)", hasharray_char[i]->key_char, hasharray_char[i]->data_char);
+//        else
+//            printf(" ~~ ");
+//    }
+//    printf("\n");
+//}
+
+struct DataItem
+{
+    int data;
+    int key;
+};
+
+struct DataItem* hashArray[HASHSIZE]={};
+struct DataItem* dummyItem;
+struct DataItem* item;
+
+int hashCode(int key)
+{
+    return key % HASHSIZE;
+}
+
+struct DataItem *search(int key)
+{
+    // get the hash
+    int hashIndex = hashCode(key);
+
+    // move in array until an empty
+    while(hashArray[hashIndex] != NULL)
+    {
+        if(hashArray[hashIndex]->key == key)
+            return hashArray[hashIndex];
+
+        // go to next cell
+        ++hashIndex;
+
+        // wrap around the table
+        hashIndex %= HASHSIZE;
+    }
+
+    return NULL;
+}
+
+void insert(int key, int data)
+{
+    struct DataItem *item = (struct DataItem*) malloc(sizeof(struct DataItem));
+    //strcpy((char*)item->data, data); 
+    item->data = data;
+    item->key = key;
+
+    // get the hash
+    int hashIndex = hashCode(key);
+
+    // move in array until an empty or deleted cell
+    while(hashArray[hashIndex] != NULL && hashArray[hashIndex]->key != -1)
+    {
+        // go to next cell
+        ++hashIndex;
+
+        // wrap around the table
+        hashIndex %= HASHSIZE;
+    }
+
+    hashArray[hashIndex] = item;
+}
+
+struct DataItem* deleteit(struct DataItem* item)
+{
+    int key = item->key;
+
+    // get the hash
+    int hashIndex = hashCode(key);
+
+    // move in array until an empty
+    while(hashArray[hashIndex] != NULL)
+    {
+        if(hashArray[hashIndex]->key == key)
+        {
+            struct DataItem* temp = hashArray[hashIndex];
+
+            // assign a dummy item at deleted position
+            hashArray[hashIndex] = dummyItem;
+            return temp;
+        }
+
+        // go to next cell
+        ++hashIndex;
+
+        // wrap around the table
+        hashIndex %= HASHSIZE;
+    }
+
+    return NULL;
+}
+
+void display()
+{
+    int i=0;
+    for(i=0; i<HASHSIZE; i++)
+    {
+        if(hashArray[i] != NULL)
+            printf(" (%d,%d)", hashArray[i]->key, hashArray[i]->data);
+        else
+            printf(" ~~ ");
+    }
+    printf("\n");
+}
+
+//struct BSSID_STATION
+//{
+//    char* bssid;
+//    char* sta;
+//}
+//
+//struct BSSID_STATION *bssid_sta = NULL;
+//
+//void add_item(char *bssid, char *sta)
+//{
+//    struct BSSID_STATION *bs;
+//
+//    bs = malloc(sizeof(struct BSSID_STATION));
+//    strcpy(bs->bssid, bssid);
+//    strcpy(bs->sta, sta);
+//    HASH_ADD_STR(bssid_sta, sta, bs);
+//}
 
 struct TLV
 {
     uint8_t type;
-    uint8_t type_option=0x00;
+    uint8_t type_option; //=0x00;
     uint8_t length;
     unsigned char value[0]; 
                          
@@ -156,6 +396,26 @@ void add_IAPP_Old_BSSID(unsigned char** p, const char* val)
     (*p)[2] = length;
     (*p)+=3;
     *p = (unsigned char*)memcpy(*p, val, length) + length;
+}
+
+void add_IAPP_SEENSTATION_BSSID(unsigned char** p, uint8_t* val)
+{
+    (*p)[0] = SEENSTATIONS_BSSID;
+    (*p)[1] = 0;
+    uint8_t length=6;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, (const char*)val, length) + length;
+}
+
+void add_IAPP_SEENSTATION_MAC(unsigned char** p, uint8_t* val)
+{
+    (*p)[0] = SEENSTATIONS_STATION;
+    (*p)[1] = 0;
+    uint8_t length=6;
+    (*p)[2] = length;
+    (*p)+=3;
+    *p = (unsigned char*)memcpy(*p, (const char*)val, length) + length;
 }
 
 void add_IAPP_Mobile_Station_Address(unsigned char** p, unsigned char* val)
@@ -328,6 +588,59 @@ unsigned char databuf[BUFFER_SIZE] = {};
 
 int main(int argc, char *argv[]){
 
+    dummyItem = (struct DataItem*) malloc(sizeof(struct DataItem));
+    dummyItem->data = -1;
+    dummyItem->key = -1;
+
+    //const char* mac_var[6];
+    //mac_var[0] = {};
+    //mac_var[0] = (const char*)"hello";
+    //mac_var[1] = {}; //(const char*)"there";
+    //snprintf((char*)mac_var[1], sizeof(mac_var),"%02x%02x%02x%02x%02x%02x", (rand() % 256), (rand() % 256), (rand() % 256), (rand() % 256), (rand() % 256), (rand() % 256) );
+
+    //insert(1, mac_var[0]);
+    //insert(2, mac_var[1]);
+   // insert(4, "close");
+   // insert(42, "Deep u r");
+   // insert(12, "steps");
+   // insert(14, "bigger");
+   // insert(17, "horror");
+   // insert(13, "dump");
+   // insert(37, "dead");
+   
+    insert(1,2);
+    insert(3,4);
+    insert(5,6);
+    insert(7,8);
+    insert(9,10);
+
+
+    display();
+    item = search(3);
+
+    if(item!=NULL)
+    {
+        printf("1-Element found: %d, and its key: %d\n", item->data, item->key);
+    }
+    else
+    {
+        printf("1-Element not found\n");
+    }
+
+    deleteit(item);
+    item = search(3);
+    display();
+   
+    if(item!=NULL)
+    {
+        printf("2-Element found: %d, and its key: %d\n", item->data, item->key);
+    }
+    else
+    {
+        printf("2-Element not found\n");
+    }
+
+
     /*Create a datagram socket on which to receive*/
     sd = socket(AF_INET, SOCK_DGRAM, 0);
     if(sd < 0)
@@ -372,6 +685,7 @@ int main(int argc, char *argv[]){
         close(sd);
         exit(1);
     }
+
     if(setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&group, sizeof(group)) < 0)
     {
         perror("Adding multicast group error");
@@ -397,7 +711,7 @@ int main(int argc, char *argv[]){
 
     unsigned char ssidholder[size_array][33];
     uint8_t bssidholder[size_array][6];
-    unsigned char mobile_addressholder[size_array][6];
+   unsigned char mobile_addressholder[size_array][6];
 
 /* 1. generate the random array in a loop of 100 elements
  * 2. store the array in a 2D array of 100 elemets
@@ -460,12 +774,12 @@ int main(int argc, char *argv[]){
     }
 
     /* 3. extract the 1D array from the 2D array */
-        unsigned char ssid[33];
-        uint8_t bssid[6];
-        unsigned char mobile_address[6];
-
-        uint8_t iapp_version[1] = {0x01};
-        uint8_t iapp_type[1] = {atoi(argv[1])};
+    unsigned char ssid[33];
+    uint8_t bssid[6];
+    unsigned char mobile_address[6];
+    uint8_t iapp_version[1] = {0x01};
+    uint8_t iapp_type[1] = {};
+    iapp_type[0] = atoi(argv[1]); 
     uint8_t all_packets_counter = 0;
     for(int i=0; i<max_traffic; i++)
     {
@@ -479,75 +793,58 @@ int main(int argc, char *argv[]){
         add_IAPP_Version(&bufptr, iapp_version);
         add_IAPP_Type(&bufptr, iapp_type);
 
-        /* (TYPE 6) Filling a SEENNEIGBORS_INFO Packet */
+/////////* (TYPE 6) Filling a SEENNEIGBORS_INFO Packet */////////
         /* USAGE: 
          * This scans the area once per day to see if
          * there are any neighbors available and get their BSSID.
          * BUT: for the purpose of testing we generate a random List
          * of BSSIDs as neighbors and get them sent once a day */
        
+        if(iapp_type[0] == 6)
+        {
         /* Fill the PDU Structure */
         for(int j=0; j<neighbors_rows;j++)
         {
             add_IAPP_Neighbor_Info(&bufptr, neighbors_list[j]); 
         }
 
-//        // extract 'ssid' from 'ssidholder'
-//        memcpy(ssid, ssidholder[i], sizeof(ssid));
-//        add_IAPP_SSID(&bufptr, ssid); // length 2-33
-//      
-//        // extract 'bssid' from 'bssidholder'
-//        for(int j=0; j<6; j++)
-//        {
-//            bssid[j] = bssidholder[j][i];
-//        }
-//        add_IAPP_BSSID(&bufptr, bssid); // length always 6
-//
-//        add_IAPP_Old_BSSID(&bufptr, "\xff\x00\x11\x11\x00\xff"); // length always 6
-//       
-//        // extract 'mobile_address' from 'mobile_addressholder'
-//        memcpy(mobile_address, mobile_addressholder[i], sizeof(mobile_address));
-//        add_IAPP_Mobile_Station_Address(&bufptr, mobile_address); // length always 6
-//
-//        add_IAPP_Capabilities(&bufptr, "\x20"); // length always 1
-//        add_IAPP_Phy_Type(&bufptr, "\x07"); // length always 1
-//        add_IAPP_Regulatory_Domain(&bufptr, "\x00"); // length always 1
-//        add_IAPP_Radio_Channel(&bufptr, "\x06"); // length always 1
-//        add_IAPP_Beacon_Interval(&bufptr, "\x00\x64"); // length always 2
-//        add_IAPP_OUI_Identifer(&bufptr, "\x10\x56\x57"); // length always 3
         add_Terminator(&bufptr); // Terminator to determine the End Of Buffer
+        }
 
-          /* (TYPE 1) Filling an ANNOUNCE_RESPONSE Packet */
+/////////* (TYPE 1) Filling an ANNOUNCE_RESPONSE Packet *//////////
 
-//        /* Fill the PDU Structure */
-//        // extract 'ssid' from 'ssidholder'
-//        memcpy(ssid, ssidholder[i], sizeof(ssid));
-//        add_IAPP_SSID(&bufptr, ssid); // length 2-33
-//        
-//        // extract 'bssid' from 'bssidholder'
-//        for(int j=0; j<6; j++)
-//        {
-//            bssid[j] = bssidholder[j][i];
-//        }
-//        add_IAPP_BSSID(&bufptr, bssid); // length always 6
-//
-//        add_IAPP_Old_BSSID(&bufptr, "\xff\x00\x11\x11\x00\xff"); // length always 6
-//       
-//        // extract 'mobile_address' from 'mobile_addressholder'
-//        memcpy(mobile_address, mobile_addressholder[i], sizeof(mobile_address));
-//        add_IAPP_Mobile_Station_Address(&bufptr, mobile_address); // length always 6
-//
-//        add_IAPP_Capabilities(&bufptr, "\x20"); // length always 1
-//        add_IAPP_Announce_Interval(&bufptr, "\x00\x78"); // length always 2
-//        add_IAPP_Handover_Timeout(&bufptr, "\x03\xe8"); // length always 2
-//        add_IAPP_Message_ID(&bufptr, "\x00\x50"); // length always 2
-//        add_IAPP_Phy_Type(&bufptr, "\x07"); // length always 1
-//        add_IAPP_Regulatory_Domain(&bufptr, "\x00"); // length always 1
-//        add_IAPP_Radio_Channel(&bufptr, "\x06"); // length always 1
-//        add_IAPP_Beacon_Interval(&bufptr, "\x00\x64"); // length always 2
-//        add_IAPP_OUI_Identifer(&bufptr, "\x00\xa0\x01"); // length always 3
-//        add_Terminator(&bufptr); // Terminator to determine the End Of Buffer
+        if(iapp_type[0] == 1)
+        {
 
+        /* Fill the PDU Structure */
+        // extract 'ssid' from 'ssidholder'
+        memcpy(ssid, ssidholder[i], sizeof(ssid));
+        add_IAPP_SSID(&bufptr, ssid); // length 2-33
+        
+        // extract 'bssid' from 'bssidholder'
+        for(int j=0; j<6; j++)
+        {
+            bssid[j] = bssidholder[j][i];
+        }
+        add_IAPP_BSSID(&bufptr, bssid); // length always 6
+
+        add_IAPP_Old_BSSID(&bufptr, "\xff\x00\x11\x11\x00\xff"); // length always 6
+       
+        // extract 'mobile_address' from 'mobile_addressholder'
+        memcpy(mobile_address, mobile_addressholder[i], sizeof(mobile_address));
+        add_IAPP_Mobile_Station_Address(&bufptr, mobile_address); // length always 6
+
+        add_IAPP_Capabilities(&bufptr, "\x20"); // length always 1
+        add_IAPP_Announce_Interval(&bufptr, "\x00\x78"); // length always 2
+        add_IAPP_Handover_Timeout(&bufptr, "\x03\xe8"); // length always 2
+        add_IAPP_Message_ID(&bufptr, "\x00\x50"); // length always 2
+        add_IAPP_Phy_Type(&bufptr, "\x07"); // length always 1
+        add_IAPP_Regulatory_Domain(&bufptr, "\x00"); // length always 1
+        add_IAPP_Radio_Channel(&bufptr, "\x06"); // length always 1
+        add_IAPP_Beacon_Interval(&bufptr, "\x00\x64"); // length always 2
+        add_IAPP_OUI_Identifer(&bufptr, "\x00\xa0\x01"); // length always 3
+        add_Terminator(&bufptr); // Terminator to determine the End Of Buffer
+        }
 
         /* calculate the length of buffer & PRINT BUFFER */
         int buf_modified_length = 0;

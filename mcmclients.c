@@ -25,23 +25,33 @@
 #define SEENNEIGHBORS_INFO          6
 #define IAPP_MAXTYPE                6
 
-#define TYPE_NETWORK_NAME           0
-#define TYPE_BSSID                  1
-#define TYPE_OLD_BSSID              2
-#define TYPE_MOBILE_STATION_ADDRESS 3
-#define TYPE_CAPABILITIES           4
-#define TYPE_ANNOUNCE_INTERVAL      5
-#define TYPE_HANDOVER_TIMEOUT       6
-#define TYPE_MESSAGE_ID             7
+#define TYPE_NETWORK_NAME           0x00
+#define TYPE_BSSID                  0x01
+#define TYPE_OLD_BSSID              0x02
+#define TYPE_MOBILE_STATION_ADDRESS 0x03
+#define TYPE_CAPABILITIES           0x04
+#define TYPE_ANNOUNCE_INTERVAL      0x05
+#define TYPE_HANDOVER_TIMEOUT       0x06
+#define TYPE_MESSAGE_ID             0x07
 #define TYPE_PHY_TYPE               16
 #define TYPE_REGULATORY_DOMAIN      17
 #define TYPE_RADIO_CHANNEL          18
 #define TYPE_BEACON_INTERVAL        19
-#define TYPE_OUI_IDENTIFIER         128
-#define TYPE_NEIGHBOR_INFO          133
-#define TYPE_LOAD_INFO              134
-#define TYPE_SEEN_STATIONS          135
-#define TYPE_SEEN_NEIGHBORS         136
+#define TYPE_OUI_IDENTIFIER         0x80
+#define TYPE_AUTHINFO               0x81
+#define TYPE_IPADDRS                0x82
+#define TYPE_MDID                   0x83
+#define TYPE_PMKSA                  0x84
+#define TYPE_NEIGHBOR_INFO          0x85
+#define TYPE_LOAD_INFO              0x86
+#define TYPE_SEEN_STATIONS          0x87
+#define TYPE_SEEN_NEIGHBORS         0x88
+#define TYPE_STATIONIDENTITY        0x89
+
+#define SEENSTATIONS_BSSID          0x01
+#define SEENSTATIONS_STATION        0x02
+
+#define SEENNEIGHBORS_BSSID         0x01
 
 #define BUFFER_SIZE                 256
 
@@ -467,15 +477,15 @@ int main(int argc, char *argv[]){
                         break;
             
                     case SEENSTATION_REQUEST:
-                        printf("General Type: SeenStations Request (%u)\n", IAPPPtr->general_type);
+                        printf("General Type: SEENSTATIONS Request (%u)\n", IAPPPtr->general_type);
                         break;
             
                     case SEENSTATION_RESPONSE:
-                        printf("General Type: SeenStations Response (%u)\n", IAPPPtr->general_type);
+                        printf("General Type: SEENSTATIONS Response (%u)\n", IAPPPtr->general_type);
                         break;
             
                     case SEENNEIGHBORS_INFO:
-                        printf("General Type: SeenNeighbors Info (%u)\n", IAPPPtr->general_type);
+                        printf("General Type: SEENNEIGHBORS Info (%u)\n", IAPPPtr->general_type);
                         break;
             
                     default:
@@ -510,8 +520,18 @@ int main(int argc, char *argv[]){
                             printf("\t%-30.*s\t\t|\t\t%-30d\n", p->length, p->value, p->length);
                             break;
 
-                        case TYPE_BSSID:
-       
+                        case (TYPE_BSSID):
+                            if((IAPPPtr->general_type == SEENSTATION_REQUEST) || (IAPPPtr->general_type == SEENSTATION_RESPONSE ))
+                            {
+                            printf("\t\t\t\t\t%-40s\n\t\t\t\t\t%-s\n", "SEENSTA. BSSID (1)", "_________________");
+
+                            printf("\t%-30s\t\t|\t\t%-30s\n", "BSSID", "LENGTH");
+                            printf("\t");
+                            printhexvalue(p->value, p->length);
+                            printf("\t\t\t|\t\t%-30d\n", p->length);
+                            break;
+                                
+                            }
                             printf("\t\t\t\t\t%-40s\n\t\t\t\t\t%-s\n", "MAC ADDRESS (1)", "_________________");
 
                             printf("\t%-30s\t\t|\t\t%-30s\n", "BSSID", "LENGTH");
@@ -520,7 +540,18 @@ int main(int argc, char *argv[]){
                             printf("\t\t\t|\t\t%-30d\n", p->length);
                             break;
             
-                        case TYPE_OLD_BSSID:
+                        case (TYPE_OLD_BSSID):
+                            if((IAPPPtr->general_type == SEENSTATION_REQUEST) || (IAPPPtr->general_type == SEENSTATION_RESPONSE))
+                            {
+                            printf("\t\t\t\t\t%-40s\n\t\t\t\t\t%-s\n", "SEENSTA. MAC (2)", "________________");
+
+                            printf("\t%-30s\t\t|\t\t%-30s\n", "Station MAC Addr.", "LENGTH");
+                            printf("\t");
+                            printhexvalue(p->value, p->length);
+                            printf("\t\t\t|\t\t%-30d\n", p->length);
+                            break;
+                                
+                            }
                             printf("\t\t\t\t\t%-40s\n\t\t\t\t\t%-s\n", "OLD MAC ADDRESS (2)", "______________");
 
                             printf("\t%-30s\t\t|\t\t%-30s\n", "OLD BSSID", "LENGTH");
@@ -638,18 +669,37 @@ int main(int argc, char *argv[]){
                                 printf("- Length is : %u \n", p->length);
                                 printf("- Value : ");
                                 printhexvalue(p->value, p->length);
+//                                struct TLV *underp = (struct TLV *)p->value;
+//                                for(int j=0; (j < (p->length)) && (underp->length != 0) ;)
+//                                {
+//                                    underp = (struct TLV *)p->value;
+//                                    p->value += 3 + underp->length;
+//                                    
+//                                    case TYPE_BSSID: 
+//
+//                                    break;
+//
+//
+//                                    i += sizeof(TLV) + (underp->length);
+//                                }
                                 break;
                             }
   
                         case TYPE_LOAD_INFO:
-                            printf("- Load INFO : (%u)\n", p->type);
-                            printf("- Length is : %u \n", p->length);
-                            printf("- Value : ");
-                            printhexvalue(p->value, p->length);
-                            printf("\n");
+                            printf("\t\t\t\t\t%-40s\n\t\t\t\t\t%-s\n", "LOAD INFO (134)", "_________________");
+
+                            printf("\t%-30s\t\t|\t\t%-30s\n", "LOAD INFO", "LENGTH");
+                            printf("\t(");
+                            printdecvalue(p->value, p->length);
+                            //printf("(%1u) \t\t", ntohs(*(uint16_t *)(p->value)));
+                            printf("\b %)\t\t\t\t\t|\t\t%-30d\n", p->length);
                             break;
   
                         case TYPE_SEEN_STATIONS:
+                            if(IAPPPtr->general_type == SEENSTATION_REQUEST)
+                            {
+                                
+                            }
                             printf("- Seen Stations : (%u)\n", p->type);
                             printf("- Length is : %u \n", p->length);
                             printf("- Value : ");
