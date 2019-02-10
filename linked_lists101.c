@@ -1,3 +1,6 @@
+/** Hash Table using a Linked List to resolve the collision.
+	(Closed addressing) **/
+
 #include <stdio.h>
 #include <stdlib.h>
 
